@@ -46,7 +46,7 @@ In this architecture, the local SQLite database on the mobile device is the auth
 
 | Category | Technology | Version / Specification | Role |
 |---|---|---|---|
-| **Mobile Framework** | React Native | Expo SDK 51+ | Cross-platform native mobile runtime |
+| **Mobile Framework** | React Native | Expo SDK 58+ | Cross-platform native mobile runtime |
 | **Mobile Navigation** | Expo Router | File-based routing | Screen transitions and deep linking |
 | **Language** | TypeScript | Strict mode | Static typing across the mobile codebase |
 | **Local Database** | SQLite | `expo-sqlite` (next) | Embedded on-device persistence |
