@@ -9,16 +9,16 @@ import { PasswordInput } from '@/components/ui/PasswordInput';
 import { TextLink } from '@/components/ui/TextLink';
 import { spacing } from '@/constants/theme';
 import { AuthScreenLayout } from '@/features/auth/components/AuthScreenLayout';
-import { DemoModeCaption } from '@/features/auth/components/DemoModeCaption';
 import { FormNotice, type FormNoticeState } from '@/features/auth/components/FormNotice';
 import { validateLogin, type LoginValues } from '@/features/auth/validation';
 import { useForm } from '@/hooks/useForm';
-import { authService } from '@/services/auth';
+import { useSession } from '@/store/session';
 
 const INITIAL_VALUES: LoginValues = { email: '', password: '' };
 
 export default function LoginScreen() {
   const router = useRouter();
+  const { signIn } = useSession();
   const emailRef = useRef<TextInputInstance>(null);
   const passwordRef = useRef<TextInputInstance>(null);
   const [loading, setLoading] = useState(false);
@@ -39,13 +39,9 @@ export default function LoginScreen() {
       setNotice(null);
       setLoading(true);
       try {
-        const result = await authService.signIn({ email: email.trim(), password });
+        const result = await signIn(email.trim(), password);
         if (result.status === 'success') {
-          setNotice({
-            tone: 'success',
-            title: authService.isMock ? 'Demo mode' : 'Signed in',
-            message: result.notice ?? 'You are signed in.',
-          });
+          router.replace('/(tabs)');
         } else {
           setNotice({ tone: 'error', title: "Couldn't log you in", message: result.message });
         }
@@ -124,7 +120,6 @@ export default function LoginScreen() {
       </View>
 
       <PrimaryButton title="Log In" onPress={handleSubmit} loading={loading} />
-      <DemoModeCaption action="sign-in" />
     </AuthScreenLayout>
   );
 }

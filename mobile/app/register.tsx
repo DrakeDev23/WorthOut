@@ -9,7 +9,6 @@ import { PasswordInput } from '@/components/ui/PasswordInput';
 import { TextLink } from '@/components/ui/TextLink';
 import { spacing } from '@/constants/theme';
 import { AuthScreenLayout } from '@/features/auth/components/AuthScreenLayout';
-import { DemoModeCaption } from '@/features/auth/components/DemoModeCaption';
 import { FormNotice, type FormNoticeState } from '@/features/auth/components/FormNotice';
 import {
   PASSWORD_MIN_LENGTH,
@@ -17,8 +16,7 @@ import {
   type RegisterValues,
 } from '@/features/auth/validation';
 import { useForm } from '@/hooks/useForm';
-import { authService } from '@/services/auth';
-
+import { useSession } from '@/store/session';
 
 const NO_AUTOFILL = { autoComplete: 'off', importantForAutofill: 'no' } as const;
 
@@ -26,6 +24,7 @@ const INITIAL_VALUES: RegisterValues = { name: '', email: '', password: '', conf
 
 export default function RegisterScreen() {
   const router = useRouter();
+  const { signUp } = useSession();
   const nameRef = useRef<TextInputInstance>(null);
   const emailRef = useRef<TextInputInstance>(null);
   const passwordRef = useRef<TextInputInstance>(null);
@@ -55,17 +54,9 @@ export default function RegisterScreen() {
       setNotice(null);
       setLoading(true);
       try {
-        const result = await authService.signUp({
-          name: name.trim(),
-          email: email.trim(),
-          password,
-        });
+        const result = await signUp(name.trim(), email.trim(), password);
         if (result.status === 'success') {
-          setNotice({
-            tone: 'success',
-            title: authService.isMock ? 'Demo mode' : 'Account created',
-            message: result.notice ?? 'Your account is ready.',
-          });
+          router.replace('/(tabs)');
         } else {
           setNotice({
             tone: 'error',
@@ -173,7 +164,6 @@ export default function RegisterScreen() {
         loading={loading}
         style={styles.submit}
       />
-      <DemoModeCaption action="sign-up" />
     </AuthScreenLayout>
   );
 }
