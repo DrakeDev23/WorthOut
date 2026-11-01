@@ -4,7 +4,7 @@
     "slug": "worthout",
     "version": "0.1.0",
     "orientation": "portrait",
-    "userInterfaceStyle": "automatic",
+    "userInterfaceStyle": "dark",
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.worthout.app"
@@ -18,6 +18,17 @@
     "plugins": [
       "expo-router"
     ],
-    "scheme": "worthout"
+    "scheme": "worthout",
+    "extra": {
+      "router": {
+        "asyncRoutes": {
+          "web": true
+        }
+      },
+      "eas": {
+        "projectId": "43fbd339-03d0-4732-a1b0-96aa8282d61f"
+      }
+    },
+    "owner": "kerads-team"
   }
 }

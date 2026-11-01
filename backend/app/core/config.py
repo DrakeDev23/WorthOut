@@ -12,7 +12,6 @@ class Settings(BaseSettings):
 
     DATABASE_URL: str = "postgresql+asyncpg://worthout_user:worthout_pass@postgres:5432/worthout_db"
 
-    # Authentication placeholders for Phase 2
     CLERK_SECRET_KEY: str = ""
     CLERK_PUBLISHABLE_KEY: str = ""
     CLERK_ISSUER: str = ""

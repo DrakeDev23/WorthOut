@@ -1,46 +1,79 @@
+import { useRouter } from 'expo-router';
 import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, useWindowDimensions } from 'react-native';
 
-export default function HomeScreen() {
+import { AppText } from '@/components/ui/AppText';
+import { PrimaryButton, SecondaryButton } from '@/components/ui/Button';
+import { FadeInView } from '@/components/ui/FadeInView';
+import { Logo } from '@/components/ui/Logo';
+import { ScreenContainer } from '@/components/ui/ScreenContainer';
+import { layout, spacing } from '@/constants/theme';
+import { FeaturePills } from '@/features/welcome/components/FeaturePills';
+import { MascotHero } from '@/features/welcome/components/MascotHero';
+
+const MAX_MASCOT_SIZE = 280;
+const COMPACT_HEIGHT = 700;
+
+export default function WelcomeScreen() {
+  const router = useRouter();
+  const { width, height } = useWindowDimensions();
+
+  // Scale the mascot to the screen so short or narrow phones keep the buttons in view.
+  const availableWidth = Math.min(width, layout.maxContentWidth) - layout.screenPaddingX * 2;
+  const mascotSize = Math.round(
+    Math.min(availableWidth, MAX_MASCOT_SIZE) * (height < COMPACT_HEIGHT ? 0.7 : 1)
+  );
+
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Worthout</Text>
-      <Text style={styles.subtitle}>Every rep is worth it.</Text>
-      <View style={styles.badge}>
-        <Text style={styles.badgeText}>Phase 1 Foundation Ready</Text>
-      </View>
-    </View>
+    <ScreenContainer>
+      <FadeInView distance={8}>
+        <Logo />
+      </FadeInView>
+
+      <FadeInView delay={120} style={styles.hero}>
+        <MascotHero size={mascotSize} />
+      </FadeInView>
+
+      <FadeInView delay={240} style={styles.copy}>
+        <AppText variant="display" accessibilityRole="header">
+          Every rep{'\n'}is{' '}
+          <AppText variant="display" tone="primary">
+            worth it.
+          </AppText>
+        </AppText>
+        <AppText tone="muted">
+          Plan your home workouts, log every session, and follow guided routines, all in one place.
+        </AppText>
+        <FeaturePills />
+      </FadeInView>
+
+      <FadeInView delay={360} style={styles.actions}>
+        <PrimaryButton
+          title="Get Started"
+          accessibilityHint="Opens the registration screen"
+          onPress={() => router.push('/register')}
+        />
+        <SecondaryButton
+          title="Log In"
+          accessibilityHint="Opens the login screen"
+          onPress={() => router.push('/login')}
+        />
+      </FadeInView>
+    </ScreenContainer>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#121212',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 24,
+  hero: {
+    marginTop: spacing.md,
   },
-  title: {
-    fontSize: 36,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-    marginBottom: 8,
+  copy: {
+    marginTop: spacing.md,
+    gap: spacing.md,
   },
-  subtitle: {
-    fontSize: 18,
-    color: '#A0A0A0',
-    marginBottom: 24,
-  },
-  badge: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    backgroundColor: '#1E3A8A',
-  },
-  badgeText: {
-    color: '#93C5FD',
-    fontSize: 14,
-    fontWeight: '600',
+  actions: {
+    marginTop: 'auto',
+    paddingTop: spacing.xl,
+    gap: spacing.md,
   },
 });

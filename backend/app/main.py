@@ -12,7 +12,6 @@ def create_app() -> FastAPI:
         debug=settings.DEBUG,
     )
 
-    # CORS configuration for mobile clients
     app.add_middleware(
         CORSMiddleware,
         allow_origins=["*"],
@@ -21,7 +20,6 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
 
-    # Routers
     app.include_router(health.router)
 
     return app
