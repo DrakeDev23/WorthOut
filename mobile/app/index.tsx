@@ -18,7 +18,6 @@ export default function WelcomeScreen() {
   const router = useRouter();
   const { width, height } = useWindowDimensions();
 
-  // Scale the mascot to the screen so short or narrow phones keep the buttons in view.
   const availableWidth = Math.min(width, layout.maxContentWidth) - layout.screenPaddingX * 2;
   const mascotSize = Math.round(
     Math.min(availableWidth, MAX_MASCOT_SIZE) * (height < COMPACT_HEIGHT ? 0.7 : 1)

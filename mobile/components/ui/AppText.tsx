@@ -19,7 +19,6 @@ export interface AppTextProps extends TextProps {
   tone?: Tone;
 }
 
-/** Themed text. Use this instead of raw <Text> so type styles stay consistent. */
 export function AppText({ variant = 'body', tone = 'default', style, ...rest }: AppTextProps) {
   return <Text style={[typography[variant], { color: toneColors[tone] }, style]} {...rest} />;
 }
