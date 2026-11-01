@@ -16,11 +16,9 @@ const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 export interface PressableScaleProps extends Omit<PressableProps, 'style' | 'children'> {
   style?: StyleProp<ViewStyle>;
   children?: React.ReactNode;
-  /** Scale applied while pressed. */
   pressedScale?: number;
 }
 
-/** Pressable with a quick scale + fade on press, giving every tap visible feedback. */
 export function PressableScale({
   style,
   children,

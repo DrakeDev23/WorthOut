@@ -5,7 +5,6 @@ import { StyleSheet, View } from 'react-native';
 import { colors, layout, radius } from '@/constants/theme';
 import { PressableScale } from './PressableScale';
 
-/** Round back button. Falls back to the welcome screen when there is no history. */
 export function BackButton() {
   const router = useRouter();
 

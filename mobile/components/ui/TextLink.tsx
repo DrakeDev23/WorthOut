@@ -11,7 +11,6 @@ interface TextLinkProps {
   style?: StyleProp<ViewStyle>;
 }
 
-/** Inline text action with a full-size touch target. */
 export function TextLink({ label, onPress, accessibilityHint, style }: TextLinkProps) {
   return (
     <Pressable

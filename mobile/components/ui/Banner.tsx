@@ -19,7 +19,6 @@ interface BannerProps {
   title?: string;
 }
 
-/** Inline status message for form-level feedback. */
 export function Banner({ tone, message, title }: BannerProps) {
   const { background, accent, title: defaultTitle } = toneStyles[tone];
   const heading = title ?? defaultTitle;

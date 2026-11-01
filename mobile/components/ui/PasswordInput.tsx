@@ -7,7 +7,6 @@ import { CustomInput, type CustomInputProps } from './CustomInput';
 
 type PasswordInputProps = Omit<CustomInputProps, 'secureTextEntry' | 'rightAccessory'>;
 
-/** Password field with a show/hide toggle. */
 export function PasswordInput(props: PasswordInputProps) {
   const [visible, setVisible] = useState(false);
 

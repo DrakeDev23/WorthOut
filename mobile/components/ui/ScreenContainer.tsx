@@ -15,21 +15,16 @@ import { BackgroundGlow } from './BackgroundGlow';
 
 interface ScreenContainerProps {
   children: React.ReactNode;
-  /** Ambient background lighting. */
   glow?: boolean;
   contentStyle?: StyleProp<ViewStyle>;
 }
 
-/**
- * Standard screen shell: themed background, safe areas, keyboard avoidance,
- * scrolling for small screens / large text, and a max content width for tablets.
- */
+
 export function ScreenContainer({ children, glow = true, contentStyle }: ScreenContainerProps) {
   return (
     <View style={styles.root}>
       {glow ? <BackgroundGlow /> : null}
       <SafeAreaView style={styles.flex} edges={['top', 'bottom']}>
-        {/* Android resizes the window for the keyboard on its own, so only iOS needs padding. */}
         <KeyboardAvoidingView
           style={styles.flex}
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}

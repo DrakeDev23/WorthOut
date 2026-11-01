@@ -8,7 +8,6 @@ interface CardProps {
   style?: StyleProp<ViewStyle>;
 }
 
-/** Raised surface for grouping related content, such as a form. */
 export function Card({ children, style }: CardProps) {
   return <View style={[styles.card, style]}>{children}</View>;
 }

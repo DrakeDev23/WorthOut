@@ -8,12 +8,10 @@ const LAYERS = 9;
 interface OrbProps {
   color: string;
   size: number;
-  /** Peak opacity at the center of the orb. */
   intensity: number;
   position: { top?: number; bottom?: number; left?: number; right?: number };
 }
 
-/** Soft radial glow built from stacked translucent circles (no gradient dependency). */
 export function GlowOrb({ color, size, intensity, position }: OrbProps) {
   return (
     <View style={[styles.orb, { width: size, height: size }, position]}>
@@ -37,7 +35,6 @@ export function GlowOrb({ color, size, intensity, position }: OrbProps) {
   );
 }
 
-/** Decorative ambient lighting behind screen content. Ignored by touch and screen readers. */
 export function BackgroundGlow() {
   return (
     <View

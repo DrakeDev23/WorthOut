@@ -18,13 +18,11 @@ export interface CustomInputProps extends Omit<TextInputProps, 'style'> {
   label: string;
   error?: string;
   hint?: string;
-  /** Rendered inside the field on the right (for example a show/hide toggle). */
   rightAccessory?: ReactNode;
   inputRef?: Ref<TextInputInstance>;
   containerStyle?: StyleProp<ViewStyle>;
 }
 
-/** Labeled text field with focus, error and hint states. */
 export function CustomInput({
   label,
   error,

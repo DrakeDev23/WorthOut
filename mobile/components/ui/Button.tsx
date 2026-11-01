@@ -10,7 +10,6 @@ type Variant = 'primary' | 'secondary';
 export interface ButtonProps {
   title: string;
   onPress: () => void;
-  /** Shows a spinner, announces a busy state and ignores further presses. */
   loading?: boolean;
   disabled?: boolean;
   accessibilityHint?: string;
@@ -39,12 +38,10 @@ function BaseButton({
       accessibilityLabel={title}
       accessibilityHint={accessibilityHint}
       accessibilityState={{ disabled: inactive, busy: loading }}
-      // `disabled` dims the button; `loading` only blocks presses so the spinner stays vivid.
       disabled={disabled}
       onPress={loading ? undefined : onPress}
       style={[styles.base, isPrimary ? styles.primary : styles.secondary, style]}
     >
-      {/* The label stays in layout while loading so the button never changes width. */}
       <View style={[styles.content, loading && styles.hidden]}>
         <AppText variant="button" tone={isPrimary ? 'onPrimary' : 'default'}>
           {title}

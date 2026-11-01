@@ -6,15 +6,12 @@ import { useReducedMotion } from '@/hooks/useReducedMotion';
 
 interface FadeInViewProps {
   children: React.ReactNode;
-  /** Milliseconds to wait before starting. Use small steps to stagger siblings. */
   delay?: number;
-  /** Starting vertical offset in px. */
   distance?: number;
   duration?: number;
   style?: StyleProp<ViewStyle>;
 }
 
-/** Fades and slides its children up on mount. Skips motion when reduce-motion is on. */
 export function FadeInView({
   children,
   delay = 0,

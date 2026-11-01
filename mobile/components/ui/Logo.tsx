@@ -6,7 +6,6 @@ import { AppText } from './AppText';
 
 type LogoSize = 'sm' | 'md' | 'lg';
 
-// The artwork has transparent padding, so the image box is larger than the visible mark.
 const sizes: Record<LogoSize, { mark: number; text: number }> = {
   sm: { mark: 44, text: 20 },
   md: { mark: 64, text: 28 },
@@ -18,7 +17,6 @@ interface LogoProps {
   showWordmark?: boolean;
 }
 
-/** Worthout logo image with an optional wordmark. */
 export function Logo({ size = 'md', showWordmark = true }: LogoProps) {
   const { mark, text } = sizes[size];
 

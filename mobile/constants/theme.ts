@@ -1,35 +1,23 @@
 import type { TextStyle, ViewStyle } from 'react-native';
 
-/**
- * Worthout design tokens.
- *
- * Direction: a dark, high-contrast "training floor" look with a single energetic
- * volt-lime accent. Lime is reserved for the primary action and progress so it
- * always means "go". Text colors are chosen to keep at least 4.5:1 contrast on
- * the background and surface colors.
- */
 
 export const colors = {
-  // Surfaces
   background: '#0A0C10',
   surface: '#12161C',
   surfaceRaised: '#1A1F27',
   border: '#262D38',
   borderStrong: '#3A4351',
 
-  // Text
   text: '#F4F6F8',
   textMuted: '#A8B1BF',
   textSubtle: '#7C8696',
 
-  // Brand
   primary: '#BFF800',
   primaryPressed: '#A9DE00',
   primarySoft: 'rgba(191, 248, 0, 0.12)',
   onPrimary: '#0A0C10',
   accent: '#FF7A59',
 
-  // Feedback
   danger: '#FF6B7A',
   dangerSoft: 'rgba(255, 107, 122, 0.12)',
   success: '#3DDC97',
@@ -38,7 +26,6 @@ export const colors = {
   infoSoft: 'rgba(91, 192, 255, 0.12)',
 } as const;
 
-/** 4pt spacing scale. */
 export const spacing = {
   xs: 4,
   sm: 8,
@@ -87,10 +74,8 @@ export const shadows = {
 } as const satisfies Record<string, ViewStyle>;
 
 export const layout = {
-  /** Keeps forms readable on tablets and large phones. */
   maxContentWidth: 480,
   screenPaddingX: spacing.xl,
-  /** Minimum touch target recommended by iOS/Android accessibility guidelines. */
   minTouchTarget: 48,
   controlHeight: 56,
 } as const;
