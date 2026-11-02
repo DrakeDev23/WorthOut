@@ -13,6 +13,14 @@ export type Equipment =
 
 export type Difficulty = 'Beginner' | 'Intermediate' | 'Advanced';
 
+export type RoutineCategory =
+  | 'Full Body'
+  | 'Upper Body'
+  | 'Lower Body'
+  | 'Push'
+  | 'Pull'
+  | 'Legs';
+
 export interface Exercise {
   id: string;
   name: string;
@@ -43,6 +51,7 @@ export interface Routine {
   id: string;
   name: string;
   description?: string;
+  category?: RoutineCategory;
   exercises: RoutineExercise[];
   estimatedMinutes: number;
   focus: MuscleGroup;

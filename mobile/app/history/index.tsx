@@ -7,15 +7,16 @@ import { StackScreenHeader } from '@/components/ui/StackScreenHeader';
 import { TabScreen } from '@/components/ui/TabScreen';
 import { WorkoutRow } from '@/components/ui/WorkoutRow';
 import { spacing } from '@/constants/theme';
-import { WORKOUT_HISTORY } from '@/data';
+import { useHistory } from '@/store/history';
 
 export default function WorkoutHistoryScreen() {
   const router = useRouter();
+  const { history } = useHistory();
 
   return (
     <TabScreen tabBarClearance={false}>
       <StackScreenHeader title="Workout History" subtitle="Your completed sessions" />
-      {WORKOUT_HISTORY.length === 0 ? (
+      {history.length === 0 ? (
         <EmptyState
           icon="time-outline"
           title="No workouts yet"
@@ -23,7 +24,7 @@ export default function WorkoutHistoryScreen() {
         />
       ) : (
         <View style={styles.list}>
-          {WORKOUT_HISTORY.map((session) => (
+          {history.map((session) => (
             <WorkoutRow
               key={session.id}
               session={session}
