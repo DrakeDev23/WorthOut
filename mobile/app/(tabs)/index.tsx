@@ -1,30 +1,45 @@
 import { useRouter } from 'expo-router';
-import React from 'react';
+import React, { useMemo } from 'react';
 import { StyleSheet, View } from 'react-native';
 
+import { AppText } from '@/components/ui/AppText';
 import { FadeInView } from '@/components/ui/FadeInView';
 import { SectionHeader } from '@/components/ui/SectionHeader';
 import { TabScreen } from '@/components/ui/TabScreen';
 import { WorkoutRow } from '@/components/ui/WorkoutRow';
-import { spacing } from '@/constants/theme';
-import { TODAYS_ROUTINE_ID, WEEKLY_ACTIVITY, WORKOUT_HISTORY, getRoutineById } from '@/data';
-import { PROGRESS_SUMMARY } from '@/data';
+import { colors, radius, spacing } from '@/constants/theme';
+import { TODAYS_ROUTINE_ID, getRoutineById } from '@/data';
+import { currentStreak, weeklyActivity } from '@/features/progress/analytics';
 import { DashboardHeader } from '@/features/dashboard/components/DashboardHeader';
 import { QuickActions } from '@/features/dashboard/components/QuickActions';
 import { StreakCard } from '@/features/dashboard/components/StreakCard';
 import { TodaysWorkoutCard } from '@/features/dashboard/components/TodaysWorkoutCard';
 import { WeeklyActivityCard } from '@/features/dashboard/components/WeeklyActivityCard';
+import { useHistory } from '@/store/history';
 import { useSession } from '@/store/session';
+import type { WeeklyActivityPoint } from '@/types/models';
 
 const RECENT_LIMIT = 3;
 
 export default function DashboardScreen() {
   const router = useRouter();
   const { user } = useSession();
+  const { history } = useHistory();
 
   const todaysRoutine = getRoutineById(TODAYS_ROUTINE_ID);
-  const recentWorkouts = WORKOUT_HISTORY.slice(0, RECENT_LIMIT);
+  const recentWorkouts = history.slice(0, RECENT_LIMIT);
   const displayName = user?.name ?? 'Athlete';
+
+  const weeklyData = useMemo<WeeklyActivityPoint[]>(
+    () =>
+      weeklyActivity(history).map((day) => ({
+        day: day.label,
+        minutes: day.minutes,
+        completed: day.workouts > 0,
+      })),
+    [history]
+  );
+  const streak = useMemo(() => currentStreak(history), [history]);
 
   const startTodaysWorkout = () => {
     if (todaysRoutine) {
@@ -80,30 +95,40 @@ export default function DashboardScreen() {
             actionLabel="Progress"
             onActionPress={() => router.push('/(tabs)/progress')}
           />
-          <WeeklyActivityCard data={WEEKLY_ACTIVITY} />
+          <WeeklyActivityCard data={weeklyData} />
         </View>
       </FadeInView>
 
       <FadeInView delay={240}>
-        <StreakCard streak={PROGRESS_SUMMARY.currentStreak} />
+        <StreakCard streak={streak} />
       </FadeInView>
 
       <FadeInView delay={280}>
         <View style={styles.section}>
           <SectionHeader
             title="Recent Workouts"
-            actionLabel="View all"
-            onActionPress={() => router.push('/history')}
+            actionLabel={recentWorkouts.length > 0 ? 'View all' : undefined}
+            onActionPress={
+              recentWorkouts.length > 0 ? () => router.push('/history') : undefined
+            }
           />
-          <View style={styles.list}>
-            {recentWorkouts.map((session) => (
-              <WorkoutRow
-                key={session.id}
-                session={session}
-                onPress={() => router.push(`/history/${session.id}`)}
-              />
-            ))}
-          </View>
+          {recentWorkouts.length === 0 ? (
+            <View style={styles.emptyRow}>
+              <AppText variant="caption" tone="muted" style={styles.emptyText}>
+                No workouts yet. Complete your first workout to see your activity here.
+              </AppText>
+            </View>
+          ) : (
+            <View style={styles.list}>
+              {recentWorkouts.map((session) => (
+                <WorkoutRow
+                  key={session.id}
+                  session={session}
+                  onPress={() => router.push(`/history/${session.id}`)}
+                />
+              ))}
+            </View>
+          )}
         </View>
       </FadeInView>
     </TabScreen>
@@ -116,5 +141,15 @@ const styles = StyleSheet.create({
   },
   list: {
     gap: spacing.md,
+  },
+  emptyRow: {
+    padding: spacing.lg,
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  emptyText: {
+    textAlign: 'center',
   },
 });

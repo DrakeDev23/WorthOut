@@ -1,42 +1,302 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import React from 'react';
-import { StyleSheet, View } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { Alert, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AppText } from '@/components/ui/AppText';
 import { PrimaryButton, SecondaryButton } from '@/components/ui/Button';
+import { Chip } from '@/components/ui/Chip';
 import { Icon } from '@/components/ui/Icon';
+import { PressableScale } from '@/components/ui/PressableScale';
 import { colors, radius, spacing } from '@/constants/theme';
-import { getRoutineById } from '@/data';
+import { getExerciseById } from '@/data';
+import { ExerciseIllustration } from '@/features/exercises/components/ExerciseIllustration';
+import { ExerciseOverviewSheet } from '@/features/workout/components/ExerciseOverviewSheet';
+import { PausedOverlay } from '@/features/workout/components/PausedOverlay';
+import { RestTimer } from '@/features/workout/components/RestTimer';
+import { SetTracker } from '@/features/workout/components/SetTracker';
+import { WorkoutHeader } from '@/features/workout/components/WorkoutHeader';
+import { activeElapsedMs, hasIncompleteWork } from '@/features/workout/session';
+import { useRoutines } from '@/store/routines';
+import { useWorkout } from '@/store/workout';
 
 export default function ActiveWorkoutScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const routine = getRoutineById(id ?? '');
+  const { getRoutine } = useRoutines();
+  const {
+    workout,
+    startWorkout,
+    completeSet,
+    skipRest,
+    pauseWorkout,
+    resumeWorkout,
+    goToExercise,
+    nextExercise,
+    previousExercise,
+    skipExercise,
+    finishWorkout,
+    discardWorkout,
+  } = useWorkout();
+
+  const [overviewOpen, setOverviewOpen] = useState(false);
+  const [startError, setStartError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (workout) return;
+    const routine = getRoutine(id ?? '');
+    const result = startWorkout(routine);
+    if (!result.ok) {
+      setStartError(
+        result.reason === 'empty'
+          ? 'This routine has no exercises. Add exercises before starting.'
+          : 'This routine could not be found.'
+      );
+    }
+  }, [id, workout, getRoutine, startWorkout]);
+
+  const exitToDashboard = () => {
+    discardWorkout();
+    router.replace('/(tabs)');
+  };
+
+  if (!workout) {
+    return (
+      <View style={styles.root}>
+        <SafeAreaView style={styles.centered} edges={['top', 'bottom']}>
+          <View style={styles.iconCircle}>
+            <Icon name="alert-circle-outline" size={30} color={colors.primary} />
+          </View>
+          <AppText variant="title" style={styles.centerTitle} accessibilityRole="header">
+            Can't start workout
+          </AppText>
+          <AppText tone="muted" style={styles.centerSubtitle}>
+            {startError ?? 'No active workout.'}
+          </AppText>
+          <View style={styles.centerActions}>
+            <PrimaryButton title="Back to Dashboard" onPress={() => router.replace('/(tabs)')} />
+            <SecondaryButton title="Go Back" onPress={() => router.back()} />
+          </View>
+        </SafeAreaView>
+      </View>
+    );
+  }
+
+  if (workout.status === 'completed') {
+    return <CompletionRedirect />;
+  }
+
+  const totalSets = workout.exercises.reduce((sum, ex) => sum + ex.sets.length, 0);
+  const completedSets = workout.exercises.reduce(
+    (sum, ex) => sum + ex.sets.filter((set) => set.completed).length,
+    0
+  );
+
+  const exercise = workout.exercises[workout.currentExerciseIndex];
+  const exerciseModel = getExerciseById(exercise.exerciseId);
+  const isResting = workout.status === 'resting' && workout.rest != null;
+  const isFirst = workout.currentExerciseIndex === 0;
+  const isLast = workout.currentExerciseIndex === workout.exercises.length - 1;
+
+  const confirmSkip = () => {
+    const incomplete = exercise.sets.some((set) => !set.completed);
+    if (!incomplete) {
+      skipExercise(workout.currentExerciseIndex);
+      return;
+    }
+    Alert.alert(
+      'Skip exercise?',
+      `${exercise.name} still has incomplete sets. Skipping will not mark them as completed.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Skip',
+          style: 'destructive',
+          onPress: () => skipExercise(workout.currentExerciseIndex),
+        },
+      ]
+    );
+  };
+
+  const confirmFinish = () => {
+    const incomplete = hasIncompleteWork(workout);
+    Alert.alert(
+      'Finish workout?',
+      incomplete
+        ? 'You still have incomplete exercises or sets. Finish anyway?'
+        : 'Great work! Ready to finish and see your summary?',
+      [
+        { text: 'Keep Going', style: 'cancel' },
+        {
+          text: 'Finish',
+          style: incomplete ? 'destructive' : 'default',
+          onPress: () => {
+            finishWorkout();
+            router.replace('/workout/complete');
+          },
+        },
+      ]
+    );
+  };
+
+  const confirmClose = () => {
+    Alert.alert('Leave workout?', 'Your current workout progress will be discarded.', [
+      { text: 'Stay', style: 'cancel' },
+      { text: 'Discard', style: 'destructive', onPress: exitToDashboard },
+    ]);
+  };
 
   return (
     <View style={styles.root}>
       <SafeAreaView style={styles.flex} edges={['top', 'bottom']}>
-        <View style={styles.content}>
-          <View style={styles.iconCircle}>
-            <Icon name="barbell" size={30} color={colors.primary} />
+        <View style={styles.header}>
+          <WorkoutHeader
+            workout={workout}
+            completedSets={completedSets}
+            totalSets={totalSets}
+            onPause={pauseWorkout}
+            onClose={confirmClose}
+          />
+        </View>
+
+        <ScrollView
+          style={styles.flex}
+          contentContainerStyle={styles.scroll}
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={styles.exerciseMeta}>
+            <AppText variant="caption" tone="primary">
+              Exercise {workout.currentExerciseIndex + 1} of {workout.exercises.length}
+            </AppText>
           </View>
-          <AppText variant="title" style={styles.title} accessibilityRole="header">
-            {routine ? routine.name : 'Workout'}
-          </AppText>
-          <AppText tone="muted" style={styles.subtitle}>
-            The full Active Workout experience — set tracking, rest timer and the completion summary
-            — lands in a later stage. This is the dedicated full-screen route it will use.
+
+          {exerciseModel ? (
+            <View style={styles.illustration}>
+              <ExerciseIllustration exercise={exerciseModel} size={140} />
+            </View>
+          ) : null}
+
+          <AppText variant="title" style={styles.exerciseName} accessibilityRole="header">
+            {exercise.name}
           </AppText>
 
-          <View style={styles.actions}>
-            <PrimaryButton title="Back to Dashboard" onPress={() => router.replace('/(tabs)')} />
-            <SecondaryButton title="Cancel" onPress={() => router.back()} />
+          <View style={styles.tagRow}>
+            <Chip label={exercise.muscleGroup} icon="locate-outline" />
+            <Chip label={exercise.equipment} icon="barbell-outline" />
           </View>
+
+          {isResting && workout.rest ? (
+            <View style={styles.block}>
+              <RestTimer
+                rest={workout.rest}
+                paused={false}
+                onSkip={skipRest}
+                onPauseToggle={pauseWorkout}
+              />
+              <AppText variant="caption" tone="subtle" style={styles.restHint}>
+                Up next: Set {workout.currentSetIndex + 1} of {exercise.sets.length}
+              </AppText>
+            </View>
+          ) : (
+            <View style={styles.block}>
+              <SetTracker
+                exercise={exercise}
+                currentSetIndex={workout.currentSetIndex}
+                onCompleteSet={completeSet}
+              />
+            </View>
+          )}
+
+          <View style={styles.navRow}>
+            <PressableScale
+              accessibilityRole="button"
+              accessibilityLabel="Previous exercise"
+              accessibilityState={{ disabled: isFirst }}
+              disabled={isFirst}
+              onPress={previousExercise}
+              style={[styles.navButton, isFirst && styles.navDisabled]}
+            >
+              <Icon name="chevron-back" size={18} color={isFirst ? colors.textSubtle : colors.text} />
+              <AppText variant="label" tone={isFirst ? 'subtle' : 'default'}>
+                Prev
+              </AppText>
+            </PressableScale>
+
+            <PressableScale
+              accessibilityRole="button"
+              accessibilityLabel="Skip this exercise"
+              onPress={confirmSkip}
+              style={styles.navButton}
+            >
+              <Icon name="play-skip-forward-outline" size={18} color={colors.text} />
+              <AppText variant="label">Skip</AppText>
+            </PressableScale>
+
+            <PressableScale
+              accessibilityRole="button"
+              accessibilityLabel="Next exercise"
+              accessibilityState={{ disabled: isLast }}
+              disabled={isLast}
+              onPress={nextExercise}
+              style={[styles.navButton, isLast && styles.navDisabled]}
+            >
+              <AppText variant="label" tone={isLast ? 'subtle' : 'default'}>
+                Next
+              </AppText>
+              <Icon
+                name="chevron-forward"
+                size={18}
+                color={isLast ? colors.textSubtle : colors.text}
+              />
+            </PressableScale>
+          </View>
+
+          <PressableScale
+            accessibilityRole="button"
+            accessibilityLabel="View all exercises"
+            onPress={() => setOverviewOpen(true)}
+            style={styles.overviewButton}
+          >
+            <Icon name="list-outline" size={18} color={colors.textMuted} />
+            <AppText variant="label" tone="muted">
+              View all exercises
+            </AppText>
+          </PressableScale>
+        </ScrollView>
+
+        <View style={styles.footer}>
+          <PrimaryButton title="Finish Workout" onPress={confirmFinish} />
         </View>
       </SafeAreaView>
+
+      {workout.status === 'paused' ? (
+        <PausedOverlay
+          elapsedSeconds={Math.floor(activeElapsedMs(workout) / 1000)}
+          onResume={resumeWorkout}
+          onFinish={confirmFinish}
+        />
+      ) : null}
+
+      <ExerciseOverviewSheet
+        visible={overviewOpen}
+        workout={workout}
+        onClose={() => setOverviewOpen(false)}
+        onSelect={(index) => {
+          setOverviewOpen(false);
+          goToExercise(index);
+        }}
+      />
     </View>
   );
+}
+
+/** Replaces the route with the summary once a workout is marked completed. */
+function CompletionRedirect() {
+  const router = useRouter();
+  useEffect(() => {
+    router.replace('/workout/complete');
+  }, [router]);
+  return <View style={styles.root} />;
 }
 
 const styles = StyleSheet.create({
@@ -47,7 +307,74 @@ const styles = StyleSheet.create({
   flex: {
     flex: 1,
   },
-  content: {
+  header: {
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.md,
+  },
+  scroll: {
+    paddingHorizontal: spacing.xl,
+    paddingBottom: spacing.xl,
+    gap: spacing.lg,
+    alignItems: 'center',
+  },
+  exerciseMeta: {
+    alignItems: 'center',
+  },
+  illustration: {
+    alignItems: 'center',
+  },
+  exerciseName: {
+    textAlign: 'center',
+  },
+  tagRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    gap: spacing.sm,
+  },
+  block: {
+    alignSelf: 'stretch',
+    gap: spacing.sm,
+  },
+  restHint: {
+    textAlign: 'center',
+  },
+  navRow: {
+    flexDirection: 'row',
+    alignSelf: 'stretch',
+    gap: spacing.sm,
+  },
+  navButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xs,
+    paddingVertical: spacing.md,
+    borderRadius: radius.md,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  navDisabled: {
+    opacity: 0.45,
+  },
+  overviewButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xs,
+    paddingVertical: spacing.sm,
+  },
+  footer: {
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.md,
+    backgroundColor: colors.background,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  centered: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
@@ -63,14 +390,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: spacing.sm,
   },
-  title: {
+  centerTitle: {
     textAlign: 'center',
   },
-  subtitle: {
+  centerSubtitle: {
     textAlign: 'center',
-    maxWidth: 340,
+    maxWidth: 320,
   },
-  actions: {
+  centerActions: {
     alignSelf: 'stretch',
     marginTop: spacing.xl,
     gap: spacing.md,

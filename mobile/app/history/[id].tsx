@@ -10,8 +10,8 @@ import { StackScreenHeader } from '@/components/ui/StackScreenHeader';
 import { StatCard } from '@/components/ui/StatCard';
 import { TabScreen } from '@/components/ui/TabScreen';
 import { colors, spacing } from '@/constants/theme';
-import { WORKOUT_HISTORY } from '@/data';
 import { formatMinutes, formatRelativeDate } from '@/lib/format';
+import { useHistory } from '@/store/history';
 import type { CompletedSet } from '@/types/models';
 
 function setLabel(set: CompletedSet): string {
@@ -22,7 +22,8 @@ function setLabel(set: CompletedSet): string {
 
 export default function WorkoutHistoryDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const session = WORKOUT_HISTORY.find((item) => item.id === id);
+  const { getSession } = useHistory();
+  const session = getSession(id ?? '');
 
   if (!session) {
     return (

@@ -24,7 +24,7 @@ export function AddToRoutineSheet({
   onClose,
   onAdded,
 }: AddToRoutineSheetProps) {
-  const { routines, addExerciseToRoutine } = useRoutines();
+  const { routines, addExerciseToRoutine, routineHasExercise } = useRoutines();
   const [addedRoutineId, setAddedRoutineId] = useState<string | null>(null);
 
   const handleAdd = (routineId: string, routineName: string) => {
@@ -36,6 +36,9 @@ export function AddToRoutineSheet({
         setAddedRoutineId(null);
         onClose();
       }, 650);
+    } else {
+      onAdded(`${exerciseName} is already in ${routineName}.`);
+      onClose();
     }
   };
 
@@ -46,14 +49,18 @@ export function AddToRoutineSheet({
       </AppText>
 
       {routines.map((routine) => {
-        const added = addedRoutineId === routine.id;
+        const alreadyIn = routineHasExercise(routine.id, exerciseId);
+        const added = addedRoutineId === routine.id || alreadyIn;
         return (
           <PressableScale
             key={routine.id}
             accessibilityRole="button"
-            accessibilityLabel={`Add to ${routine.name}`}
+            accessibilityLabel={
+              alreadyIn ? `Already in ${routine.name}` : `Add to ${routine.name}`
+            }
+            accessibilityState={{ disabled: added }}
             onPress={() => handleAdd(routine.id, routine.name)}
-            disabled={addedRoutineId !== null}
+            disabled={addedRoutineId !== null || alreadyIn}
             style={[styles.row, added && styles.rowAdded]}
           >
             <View style={styles.rowText}>
