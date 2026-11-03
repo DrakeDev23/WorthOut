@@ -1,11 +1,12 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { Alert, ScrollView, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AppText } from '@/components/ui/AppText';
 import { PrimaryButton, SecondaryButton } from '@/components/ui/Button';
 import { Chip } from '@/components/ui/Chip';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { Icon } from '@/components/ui/Icon';
 import { PressableScale } from '@/components/ui/PressableScale';
 import { colors, radius, spacing } from '@/constants/theme';
@@ -26,6 +27,7 @@ export default function ActiveWorkoutScreen() {
   const { getRoutine } = useRoutines();
   const {
     workout,
+    isHydrating,
     startWorkout,
     completeSet,
     skipRest,
@@ -41,8 +43,10 @@ export default function ActiveWorkoutScreen() {
 
   const [overviewOpen, setOverviewOpen] = useState(false);
   const [startError, setStartError] = useState<string | null>(null);
+  const [dialog, setDialog] = useState<'skip' | 'finish' | 'close' | null>(null);
 
   useEffect(() => {
+    if (isHydrating) return;
     if (workout) return;
     const routine = getRoutine(id ?? '');
     const result = startWorkout(routine);
@@ -53,12 +57,22 @@ export default function ActiveWorkoutScreen() {
           : 'This routine could not be found.'
       );
     }
-  }, [id, workout, getRoutine, startWorkout]);
+  }, [id, workout, isHydrating, getRoutine, startWorkout]);
 
   const exitToDashboard = () => {
     discardWorkout();
     router.replace('/(tabs)');
   };
+
+  if (isHydrating && !workout) {
+    return (
+      <View style={styles.root}>
+        <SafeAreaView style={styles.centered} edges={['top', 'bottom']}>
+          <ActivityIndicator color={colors.primary} size="large" />
+        </SafeAreaView>
+      </View>
+    );
+  }
 
   if (!workout) {
     return (
@@ -98,52 +112,22 @@ export default function ActiveWorkoutScreen() {
   const isFirst = workout.currentExerciseIndex === 0;
   const isLast = workout.currentExerciseIndex === workout.exercises.length - 1;
 
-  const confirmSkip = () => {
-    const incomplete = exercise.sets.some((set) => !set.completed);
-    if (!incomplete) {
+  const skipHasIncomplete = exercise.sets.some((set) => !set.completed);
+
+  const requestSkip = () => {
+    if (!skipHasIncomplete) {
       skipExercise(workout.currentExerciseIndex);
       return;
     }
-    Alert.alert(
-      'Skip exercise?',
-      `${exercise.name} still has incomplete sets. Skipping will not mark them as completed.`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Skip',
-          style: 'destructive',
-          onPress: () => skipExercise(workout.currentExerciseIndex),
-        },
-      ]
-    );
+    setDialog('skip');
   };
 
-  const confirmFinish = () => {
-    const incomplete = hasIncompleteWork(workout);
-    Alert.alert(
-      'Finish workout?',
-      incomplete
-        ? 'You still have incomplete exercises or sets. Finish anyway?'
-        : 'Great work! Ready to finish and see your summary?',
-      [
-        { text: 'Keep Going', style: 'cancel' },
-        {
-          text: 'Finish',
-          style: incomplete ? 'destructive' : 'default',
-          onPress: () => {
-            finishWorkout();
-            router.replace('/workout/complete');
-          },
-        },
-      ]
-    );
-  };
+  const finishIncomplete = hasIncompleteWork(workout);
 
-  const confirmClose = () => {
-    Alert.alert('Leave workout?', 'Your current workout progress will be discarded.', [
-      { text: 'Stay', style: 'cancel' },
-      { text: 'Discard', style: 'destructive', onPress: exitToDashboard },
-    ]);
+  const performFinish = () => {
+    setDialog(null);
+    finishWorkout();
+    router.replace('/workout/complete');
   };
 
   return (
@@ -155,7 +139,7 @@ export default function ActiveWorkoutScreen() {
             completedSets={completedSets}
             totalSets={totalSets}
             onPause={pauseWorkout}
-            onClose={confirmClose}
+            onClose={() => setDialog('close')}
           />
         </View>
 
@@ -216,7 +200,11 @@ export default function ActiveWorkoutScreen() {
               onPress={previousExercise}
               style={[styles.navButton, isFirst && styles.navDisabled]}
             >
-              <Icon name="chevron-back" size={18} color={isFirst ? colors.textSubtle : colors.text} />
+              <Icon
+                name="chevron-back"
+                size={18}
+                color={isFirst ? colors.textSubtle : colors.text}
+              />
               <AppText variant="label" tone={isFirst ? 'subtle' : 'default'}>
                 Prev
               </AppText>
@@ -225,7 +213,7 @@ export default function ActiveWorkoutScreen() {
             <PressableScale
               accessibilityRole="button"
               accessibilityLabel="Skip this exercise"
-              onPress={confirmSkip}
+              onPress={requestSkip}
               style={styles.navButton}
             >
               <Icon name="play-skip-forward-outline" size={18} color={colors.text} />
@@ -265,7 +253,7 @@ export default function ActiveWorkoutScreen() {
         </ScrollView>
 
         <View style={styles.footer}>
-          <PrimaryButton title="Finish Workout" onPress={confirmFinish} />
+          <PrimaryButton title="Finish Workout" onPress={() => setDialog('finish')} />
         </View>
       </SafeAreaView>
 
@@ -273,7 +261,7 @@ export default function ActiveWorkoutScreen() {
         <PausedOverlay
           elapsedSeconds={Math.floor(activeElapsedMs(workout) / 1000)}
           onResume={resumeWorkout}
-          onFinish={confirmFinish}
+          onFinish={() => setDialog('finish')}
         />
       ) : null}
 
@@ -286,11 +274,53 @@ export default function ActiveWorkoutScreen() {
           goToExercise(index);
         }}
       />
+
+      <ConfirmDialog
+        visible={dialog === 'skip'}
+        title="Skip exercise?"
+        message={`${exercise.name} still has incomplete sets. Skipping will not mark them as completed.`}
+        confirmLabel="Skip"
+        cancelLabel="Cancel"
+        destructive
+        onConfirm={() => {
+          setDialog(null);
+          skipExercise(workout.currentExerciseIndex);
+        }}
+        onCancel={() => setDialog(null)}
+      />
+
+      <ConfirmDialog
+        visible={dialog === 'finish'}
+        title="Finish workout?"
+        message={
+          finishIncomplete
+            ? 'You still have incomplete exercises or sets. Finish anyway?'
+            : 'Great work! Ready to finish and see your summary?'
+        }
+        confirmLabel="Finish"
+        cancelLabel="Keep Going"
+        destructive={finishIncomplete}
+        onConfirm={performFinish}
+        onCancel={() => setDialog(null)}
+      />
+
+      <ConfirmDialog
+        visible={dialog === 'close'}
+        title="Leave workout?"
+        message="Your current workout progress will be discarded."
+        confirmLabel="Discard"
+        cancelLabel="Stay"
+        destructive
+        onConfirm={() => {
+          setDialog(null);
+          exitToDashboard();
+        }}
+        onCancel={() => setDialog(null)}
+      />
     </View>
   );
 }
 
-/** Replaces the route with the summary once a workout is marked completed. */
 function CompletionRedirect() {
   const router = useRouter();
   useEffect(() => {

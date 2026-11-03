@@ -1,11 +1,12 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useState } from 'react';
-import { Alert, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AppText } from '@/components/ui/AppText';
 import { BackgroundGlow } from '@/components/ui/BackgroundGlow';
 import { PrimaryButton, SecondaryButton } from '@/components/ui/Button';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Icon } from '@/components/ui/Icon';
 import { PressableScale } from '@/components/ui/PressableScale';
@@ -45,6 +46,8 @@ export default function RoutineDetailScreen() {
   const [pickerOpen, setPickerOpen] = useState(false);
   const [editingEntry, setEditingEntry] = useState<RoutineExercise | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [removeEntry, setRemoveEntry] = useState<RoutineExercise | null>(null);
 
   if (!routine) {
     return (
@@ -71,18 +74,12 @@ export default function RoutineDetailScreen() {
     setToast('Routine updated.');
   };
 
-  const confirmDelete = () => {
-    Alert.alert('Delete routine', `Delete "${routine.name}"? This cannot be undone.`, [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: () => {
-          deleteRoutine(routine.id);
-          router.replace('/planner');
-        },
-      },
-    ]);
+  const confirmDelete = () => setDeleteOpen(true);
+
+  const performDelete = () => {
+    setDeleteOpen(false);
+    deleteRoutine(routine.id);
+    router.replace('/planner');
   };
 
   const handleAddExercise = (exerciseId: string) => {
@@ -92,19 +89,15 @@ export default function RoutineDetailScreen() {
   };
 
   const handleRemove = (entry: RoutineExercise) => {
-    const exercise = getExerciseById(entry.exerciseId);
-    const exerciseName = exercise?.name ?? 'this exercise';
-    Alert.alert('Remove exercise?', `Remove "${exerciseName}" from this routine?`, [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Remove',
-        style: 'destructive',
-        onPress: () => {
-          removeExerciseFromRoutine(routine.id, entry.entryId);
-          setToast('Exercise removed.');
-        },
-      },
-    ]);
+    setRemoveEntry(entry);
+  };
+
+  const performRemove = () => {
+    if (removeEntry) {
+      removeExerciseFromRoutine(routine.id, removeEntry.entryId);
+      setToast('Exercise removed.');
+    }
+    setRemoveEntry(null);
   };
 
   const handleStartWorkout = () => {
@@ -270,6 +263,30 @@ export default function RoutineDetailScreen() {
           }
           setEditingEntry(null);
         }}
+      />
+
+      <ConfirmDialog
+        visible={deleteOpen}
+        title="Delete routine"
+        message={`Delete "${routine.name}"? This cannot be undone.`}
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        destructive
+        onConfirm={performDelete}
+        onCancel={() => setDeleteOpen(false)}
+      />
+
+      <ConfirmDialog
+        visible={removeEntry !== null}
+        title="Remove exercise?"
+        message={`Remove "${
+          getExerciseById(removeEntry?.exerciseId ?? '')?.name ?? 'this exercise'
+        }" from this routine?`}
+        confirmLabel="Remove"
+        cancelLabel="Cancel"
+        destructive
+        onConfirm={performRemove}
+        onCancel={() => setRemoveEntry(null)}
       />
     </View>
   );

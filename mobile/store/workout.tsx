@@ -1,5 +1,14 @@
-import React, { createContext, useCallback, useContext, useMemo, useState } from 'react';
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 
+import { workoutRepository } from '@/repositories/workout.repository';
 import type { Routine } from '@/types/models';
 import type { ActiveWorkout } from '@/types/workout';
 import {
@@ -21,6 +30,10 @@ interface StartResult {
 
 interface WorkoutContextValue {
   workout: ActiveWorkout | null;
+
+  isHydrating: boolean;
+
+  recovered: boolean;
   startWorkout: (routine: Routine | undefined) => StartResult;
   completeSet: () => void;
   skipRest: () => void;
@@ -38,55 +51,121 @@ const WorkoutContext = createContext<WorkoutContextValue | null>(null);
 
 export function WorkoutProvider({ children }: { children: React.ReactNode }) {
   const [workout, setWorkout] = useState<ActiveWorkout | null>(null);
+  const [isHydrating, setIsHydrating] = useState(true);
+  const [recovered, setRecovered] = useState(false);
 
-  const startWorkout = useCallback((routine: Routine | undefined): StartResult => {
-    if (!routine) return { ok: false, reason: 'missing' };
-    if (routine.exercises.length === 0) return { ok: false, reason: 'empty' };
-    setWorkout(createActiveWorkout(routine));
-    return { ok: true };
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    workoutRepository
+      .getActiveSession()
+      .then((saved) => {
+        if (cancelled) return;
+        if (saved && saved.status !== 'completed') {
+          setWorkout(saved);
+          setRecovered(true);
+        } else if (saved) {
+          workoutRepository.deleteActiveSession().catch(() => undefined);
+        }
+        setIsHydrating(false);
+      })
+      .catch((error) => {
+        console.error('[workout] failed to recover session:', error);
+        if (!cancelled) setIsHydrating(false);
+      });
+    return () => {
+      cancelled = true;
+      if (saveTimer.current) clearTimeout(saveTimer.current);
+    };
   }, []);
 
-  const discardWorkout = useCallback(() => setWorkout(null), []);
-
-  const completeSet = useCallback(() => {
-    setWorkout((prev) => (prev ? completeCurrentSet(prev) : prev));
+  const scheduleSave = useCallback((next: ActiveWorkout) => {
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(() => {
+      workoutRepository.saveActiveSession(next).catch((error) => {
+        console.error('[workout] failed to persist active session:', error);
+      });
+    }, 250);
   }, []);
 
-  const skipRest = useCallback(() => {
-    setWorkout((prev) => (prev ? skipRestPure(prev) : prev));
+  const clearSaved = useCallback(() => {
+    if (saveTimer.current) {
+      clearTimeout(saveTimer.current);
+      saveTimer.current = null;
+    }
+    workoutRepository.deleteActiveSession().catch((error) => {
+      console.error('[workout] failed to delete active session:', error);
+    });
   }, []);
 
-  const pauseWorkout = useCallback(() => {
-    setWorkout((prev) => (prev ? pause(prev) : prev));
-  }, []);
+  const applyAndPersist = useCallback(
+    (transition: (current: ActiveWorkout) => ActiveWorkout) => {
+      setWorkout((prev) => {
+        if (!prev) return prev;
+        const next = transition(prev);
+        if (next !== prev) scheduleSave(next);
+        return next;
+      });
+    },
+    [scheduleSave]
+  );
 
-  const resumeWorkout = useCallback(() => {
-    setWorkout((prev) => (prev ? resume(prev) : prev));
-  }, []);
+  const startWorkout = useCallback(
+    (routine: Routine | undefined): StartResult => {
+      if (!routine) return { ok: false, reason: 'missing' };
+      if (routine.exercises.length === 0) return { ok: false, reason: 'empty' };
+      const next = createActiveWorkout(routine);
+      setRecovered(false);
+      setWorkout(next);
+      scheduleSave(next);
+      return { ok: true };
+    },
+    [scheduleSave]
+  );
 
-  const goToExercise = useCallback((index: number) => {
-    setWorkout((prev) => (prev ? goToExercisePure(prev, index) : prev));
-  }, []);
+  const discardWorkout = useCallback(() => {
+    setWorkout(null);
+    setRecovered(false);
+    clearSaved();
+  }, [clearSaved]);
 
-  const nextExercise = useCallback(() => {
-    setWorkout((prev) => (prev ? moveRelative(prev, 1) : prev));
-  }, []);
-
-  const previousExercise = useCallback(() => {
-    setWorkout((prev) => (prev ? moveRelative(prev, -1) : prev));
-  }, []);
-
-  const skipExercise = useCallback((index: number) => {
-    setWorkout((prev) => (prev ? skipExerciseAt(prev, index) : prev));
-  }, []);
+  const completeSet = useCallback(() => applyAndPersist(completeCurrentSet), [applyAndPersist]);
+  const skipRest = useCallback(() => applyAndPersist(skipRestPure), [applyAndPersist]);
+  const pauseWorkout = useCallback(() => applyAndPersist(pause), [applyAndPersist]);
+  const resumeWorkout = useCallback(() => applyAndPersist(resume), [applyAndPersist]);
+  const goToExercise = useCallback(
+    (index: number) => applyAndPersist((w) => goToExercisePure(w, index)),
+    [applyAndPersist]
+  );
+  const nextExercise = useCallback(
+    () => applyAndPersist((w) => moveRelative(w, 1)),
+    [applyAndPersist]
+  );
+  const previousExercise = useCallback(
+    () => applyAndPersist((w) => moveRelative(w, -1)),
+    [applyAndPersist]
+  );
+  const skipExercise = useCallback(
+    (index: number) => applyAndPersist((w) => skipExerciseAt(w, index)),
+    [applyAndPersist]
+  );
 
   const finishWorkout = useCallback(() => {
-    setWorkout((prev) => (prev ? finish(prev) : prev));
-  }, []);
+    setWorkout((prev) => {
+      if (!prev) return prev;
+      const next = finish(prev);
+      clearSaved();
+      return next;
+    });
+    setRecovered(false);
+  }, [clearSaved]);
 
   const value = useMemo<WorkoutContextValue>(
     () => ({
       workout,
+      isHydrating,
+      recovered,
       startWorkout,
       completeSet,
       skipRest,
@@ -101,6 +180,8 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
     }),
     [
       workout,
+      isHydrating,
+      recovered,
       startWorkout,
       completeSet,
       skipRest,

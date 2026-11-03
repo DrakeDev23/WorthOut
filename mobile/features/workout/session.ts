@@ -1,10 +1,5 @@
 import { getExerciseById } from '@/data';
-import type {
-  CompletedExercise,
-  CompletedSet,
-  Routine,
-  WorkoutSession,
-} from '@/types/models';
+import type { CompletedExercise, CompletedSet, Routine, WorkoutSession } from '@/types/models';
 import type {
   ActiveExercise,
   ActiveSet,
@@ -19,11 +14,6 @@ function nextSessionId(): string {
   return `session-${Date.now()}-${sessionSeq}`;
 }
 
-/**
- * Build an immutable snapshot of a routine for an active workout. All exercise
- * configuration is copied so that later edits to the source routine cannot
- * affect a session already in progress.
- */
 export function createActiveWorkout(routine: Routine, now: number = Date.now()): ActiveWorkout {
   const exercises: ActiveExercise[] = routine.exercises.map((entry) => {
     const exercise = getExerciseById(entry.exerciseId);
@@ -66,13 +56,11 @@ export function createActiveWorkout(routine: Routine, now: number = Date.now()):
   };
 }
 
-/** Milliseconds of active (non-paused) workout time elapsed so far. */
 export function activeElapsedMs(workout: ActiveWorkout, now: number = Date.now()): number {
   const running = workout.runStartedAt != null ? now - workout.runStartedAt : 0;
   return workout.accumulatedActiveMs + Math.max(0, running);
 }
 
-/** Seconds of rest remaining, derived from the wall clock (never from ticks). */
 export function restRemainingSeconds(rest: RestState | null, now: number = Date.now()): number {
   if (!rest) return 0;
   if (rest.remainingWhilePaused != null) return Math.max(0, rest.remainingWhilePaused);
@@ -84,7 +72,6 @@ export function isExerciseComplete(exercise: ActiveExercise): boolean {
   return !exercise.skipped && exercise.sets.every((set) => set.completed);
 }
 
-/** Index of the next exercise that still has work left, or -1 if none. */
 export function nextIncompleteIndex(workout: ActiveWorkout, from: number): number {
   for (let i = from; i < workout.exercises.length; i += 1) {
     const ex = workout.exercises[i];
@@ -94,15 +81,10 @@ export function nextIncompleteIndex(workout: ActiveWorkout, from: number): numbe
 }
 
 export function hasIncompleteWork(workout: ActiveWorkout): boolean {
-  return workout.exercises.some(
-    (ex) => !ex.skipped && !ex.sets.every((set) => set.completed)
-  );
+  return workout.exercises.some((ex) => !ex.skipped && !ex.sets.every((set) => set.completed));
 }
 
-export function computeSummary(
-  workout: ActiveWorkout,
-  now: number = Date.now()
-): WorkoutSummary {
+export function computeSummary(workout: ActiveWorkout, now: number = Date.now()): WorkoutSummary {
   const totalExercises = workout.exercises.length;
   let completedExercises = 0;
   let skippedExercises = 0;
@@ -145,23 +127,12 @@ export function computeSummary(
   };
 }
 
-/**
- * Total wall-clock time spent paused: the gap between the overall span and the
- * accounted active time. Used so the completion duration excludes pauses.
- */
 function pausedMs(workout: ActiveWorkout): number {
   if (workout.finishedAt == null) return 0;
   const span = workout.finishedAt - workout.startedAt;
   return Math.max(0, span - workout.accumulatedActiveMs);
 }
 
-/**
- * Convert a finished active workout into a persisted `WorkoutSession` for the
- * history store. Only completed sets are recorded, and exercises with no
- * completed sets are omitted so skipped/untouched work does not appear in
- * history. Duration and set totals are taken from `computeSummary` so the
- * stored entry stays consistent with the completion screen.
- */
 export function buildWorkoutSession(
   workout: ActiveWorkout,
   now: number = Date.now()
@@ -199,13 +170,6 @@ export function buildWorkoutSession(
   };
 }
 
-// ---------------------------------------------------------------------------
-// Pure state transitions. Each takes the current workout (and an optional
-// clock) and returns the next workout. Keeping these outside the store makes
-// the business logic unit-testable and independent of React.
-// ---------------------------------------------------------------------------
-
-/** Fold the currently-running time segment into the accumulated active total. */
 export function freezeActiveTime(workout: ActiveWorkout, now: number): ActiveWorkout {
   const running = workout.runStartedAt != null ? Math.max(0, now - workout.runStartedAt) : 0;
   return {
@@ -220,17 +184,15 @@ function startRest(totalSeconds: number, now: number): RestState | null {
   return { totalSeconds, endsAt: now + totalSeconds * 1000, remainingWhilePaused: null };
 }
 
-/** First set index of an exercise that is not yet completed (0 if all done). */
 function firstIncompleteSet(exercise: ActiveExercise): number {
   const idx = exercise.sets.findIndex((set) => !set.completed);
   return idx === -1 ? 0 : idx;
 }
 
-/**
- * Mark the current set complete, then advance: rest + next set if sets remain,
- * otherwise jump to the next exercise with work left (starting its rest).
- */
-export function completeCurrentSet(workout: ActiveWorkout, now: number = Date.now()): ActiveWorkout {
+export function completeCurrentSet(
+  workout: ActiveWorkout,
+  now: number = Date.now()
+): ActiveWorkout {
   if (workout.status === 'completed') return workout;
 
   const exercises = workout.exercises.map((exercise, exIdx) => {
@@ -285,7 +247,11 @@ export function pause(workout: ActiveWorkout, now: number = Date.now()): ActiveW
   if (workout.status === 'completed' || workout.status === 'paused') return workout;
   const frozen = freezeActiveTime(workout, now);
   const rest = workout.rest
-    ? { ...workout.rest, remainingWhilePaused: restRemainingSeconds(workout.rest, now), endsAt: null }
+    ? {
+        ...workout.rest,
+        remainingWhilePaused: restRemainingSeconds(workout.rest, now),
+        endsAt: null,
+      }
     : null;
   return { ...frozen, status: 'paused', rest };
 }
@@ -330,7 +296,6 @@ export function moveRelative(workout: ActiveWorkout, delta: number): ActiveWorko
   };
 }
 
-/** Mark an exercise skipped WITHOUT completing its sets, then advance. */
 export function skipExerciseAt(workout: ActiveWorkout, index: number): ActiveWorkout {
   if (workout.status === 'completed') return workout;
   if (index < 0 || index >= workout.exercises.length) return workout;
