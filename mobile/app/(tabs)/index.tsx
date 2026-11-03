@@ -3,12 +3,13 @@ import React, { useMemo } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { AppText } from '@/components/ui/AppText';
+import { PrimaryButton } from '@/components/ui/Button';
 import { FadeInView } from '@/components/ui/FadeInView';
 import { SectionHeader } from '@/components/ui/SectionHeader';
 import { TabScreen } from '@/components/ui/TabScreen';
 import { WorkoutRow } from '@/components/ui/WorkoutRow';
 import { colors, radius, spacing } from '@/constants/theme';
-import { TODAYS_ROUTINE_ID, getRoutineById } from '@/data';
+import { TODAYS_ROUTINE_ID } from '@/data';
 import { currentStreak, weeklyActivity } from '@/features/progress/analytics';
 import { DashboardHeader } from '@/features/dashboard/components/DashboardHeader';
 import { QuickActions } from '@/features/dashboard/components/QuickActions';
@@ -16,6 +17,7 @@ import { StreakCard } from '@/features/dashboard/components/StreakCard';
 import { TodaysWorkoutCard } from '@/features/dashboard/components/TodaysWorkoutCard';
 import { WeeklyActivityCard } from '@/features/dashboard/components/WeeklyActivityCard';
 import { useHistory } from '@/store/history';
+import { useRoutines } from '@/store/routines';
 import { useSession } from '@/store/session';
 import type { WeeklyActivityPoint } from '@/types/models';
 
@@ -25,8 +27,9 @@ export default function DashboardScreen() {
   const router = useRouter();
   const { user } = useSession();
   const { history } = useHistory();
+  const { routines } = useRoutines();
 
-  const todaysRoutine = getRoutineById(TODAYS_ROUTINE_ID);
+  const todaysRoutine = routines.find((r) => r.id === TODAYS_ROUTINE_ID) ?? routines[0];
   const recentWorkouts = history.slice(0, RECENT_LIMIT);
   const displayName = user?.name ?? 'Athlete';
 
@@ -44,6 +47,8 @@ export default function DashboardScreen() {
   const startTodaysWorkout = () => {
     if (todaysRoutine) {
       router.push(`/workout/${todaysRoutine.id}`);
+    } else {
+      router.push('/planner');
     }
   };
 
@@ -53,7 +58,7 @@ export default function DashboardScreen() {
         <DashboardHeader
           name={displayName}
           onNotificationsPress={() => router.push('/notifications')}
-          onProfilePress={() => router.push('/(tabs)/profile')}
+          onProfilePress={() => router.push('/profile')}
         />
       </FadeInView>
 
@@ -61,7 +66,21 @@ export default function DashboardScreen() {
         <FadeInView delay={80}>
           <TodaysWorkoutCard routine={todaysRoutine} onStart={startTodaysWorkout} />
         </FadeInView>
-      ) : null}
+      ) : (
+        <FadeInView delay={80}>
+          <View style={styles.emptyRoutineCard}>
+            <AppText variant="subheading">No routines yet</AppText>
+            <AppText variant="caption" tone="muted">
+              Create your first routine in the planner to start today&apos;s workout.
+            </AppText>
+            <PrimaryButton
+              title="Create Routine"
+              accessibilityHint="Opens the planner to build a routine"
+              onPress={() => router.push('/planner')}
+            />
+          </View>
+        </FadeInView>
+      )}
 
       <FadeInView delay={140}>
         <QuickActions
@@ -76,13 +95,13 @@ export default function DashboardScreen() {
               key: 'browse',
               icon: 'barbell-outline',
               label: 'Browse Exercises',
-              onPress: () => router.push('/(tabs)/exercises'),
+              onPress: () => router.push('/exercises'),
             },
             {
               key: 'create',
               icon: 'add-circle-outline',
               label: 'Create Routine',
-              onPress: () => router.push('/(tabs)/planner'),
+              onPress: () => router.push('/planner'),
             },
           ]}
         />
@@ -93,7 +112,7 @@ export default function DashboardScreen() {
           <SectionHeader
             title="Weekly Activity"
             actionLabel="Progress"
-            onActionPress={() => router.push('/(tabs)/progress')}
+            onActionPress={() => router.push('/progress')}
           />
           <WeeklyActivityCard data={weeklyData} />
         </View>
@@ -151,5 +170,13 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     textAlign: 'center',
+  },
+  emptyRoutineCard: {
+    padding: spacing.xl,
+    backgroundColor: colors.surface,
+    borderRadius: radius.xl,
+    borderWidth: 1,
+    borderColor: colors.border,
+    gap: spacing.md,
   },
 });

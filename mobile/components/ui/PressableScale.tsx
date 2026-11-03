@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 
 import { motion } from '@/constants/theme';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
@@ -28,15 +29,21 @@ export function PressableScale({
   onPressOut,
   ...rest
 }: PressableScaleProps) {
+  const reducedMotion = useReducedMotion();
   const pressed = useRef(new Animated.Value(0)).current;
 
-  const animateTo = (toValue: number) =>
+  const animateTo = (toValue: number) => {
+    if (reducedMotion) {
+      pressed.setValue(toValue);
+      return;
+    }
     Animated.timing(pressed, {
       toValue,
       duration: motion.fast,
       easing: Easing.out(Easing.quad),
       useNativeDriver: true,
     }).start();
+  };
 
   const handlePressIn = (event: GestureResponderEvent) => {
     animateTo(1);
@@ -53,9 +60,11 @@ export function PressableScale({
       inputRange: [0, 1],
       outputRange: disabled ? [0.5, 0.5] : [1, 0.88],
     }),
-    transform: [
-      { scale: pressed.interpolate({ inputRange: [0, 1], outputRange: [1, pressedScale] }) },
-    ],
+    transform: reducedMotion
+      ? []
+      : [
+          { scale: pressed.interpolate({ inputRange: [0, 1], outputRange: [1, pressedScale] }) },
+        ],
   };
 
   return (

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { AppText } from '@/components/ui/AppText';
@@ -23,6 +23,12 @@ export function RestTimer({ rest, paused, onSkip, onPauseToggle }: RestTimerProp
   const remaining = restRemainingSeconds(rest, now);
   const progress = rest.totalSeconds > 0 ? 1 - remaining / rest.totalSeconds : 1;
 
+  useEffect(() => {
+    if (remaining <= 0 && !paused) {
+      onSkip();
+    }
+  }, [remaining, paused, onSkip]);
+
   return (
     <View style={styles.container}>
       <View style={styles.badge}>
@@ -44,7 +50,11 @@ export function RestTimer({ rest, paused, onSkip, onPauseToggle }: RestTimerProp
           onPress={onPauseToggle}
           style={styles.control}
         />
-        <PrimaryButton title="Skip Rest" onPress={onSkip} style={styles.control} />
+        <PrimaryButton
+          title={remaining <= 0 ? 'Start Next Set' : 'Skip Rest'}
+          onPress={onSkip}
+          style={styles.control}
+        />
       </View>
     </View>
   );

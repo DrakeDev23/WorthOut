@@ -1,8 +1,9 @@
 import { useRouter } from 'expo-router';
 import React from 'react';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet } from 'react-native';
 
 import { colors, layout, radius } from '@/constants/theme';
+import { Icon } from './Icon';
 import { PressableScale } from './PressableScale';
 
 export function BackButton() {
@@ -24,7 +25,7 @@ export function BackButton() {
       hitSlop={4}
       style={styles.button}
     >
-      <View style={styles.chevron} />
+      <Icon name="chevron-back" size={22} color={colors.text} />
     </PressableScale>
   );
 }
@@ -41,14 +42,5 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  chevron: {
-    width: 11,
-    height: 11,
-    marginLeft: 4,
-    borderLeftWidth: 2.5,
-    borderBottomWidth: 2.5,
-    borderColor: colors.text,
-    transform: [{ rotate: '45deg' }],
   },
 });

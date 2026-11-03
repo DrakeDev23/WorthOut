@@ -60,6 +60,16 @@ export default function LoginScreen() {
     });
   };
 
+  const fillDemoCredentials = () => {
+    setValue('email', 'drake@gmail.com');
+    setValue('password', 'drakegwapo123');
+    setNotice({
+      tone: 'info',
+      title: 'Demo credentials applied',
+      message: 'Tap Log In to enter the dashboard as Drake.',
+    });
+  };
+
   return (
     <AuthScreenLayout
       centered
@@ -120,6 +130,17 @@ export default function LoginScreen() {
       </View>
 
       <PrimaryButton title="Log In" onPress={handleSubmit} loading={loading} />
+
+      <View style={styles.demoRow}>
+        <AppText variant="caption" tone="subtle">
+          Testing?
+        </AppText>
+        <TextLink
+          label="Fill demo credentials"
+          accessibilityHint="Fills test account credentials"
+          onPress={fillDemoCredentials}
+        />
+      </View>
     </AuthScreenLayout>
   );
 }
@@ -127,6 +148,13 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   forgotRow: {
     alignItems: 'flex-end',
+    marginTop: spacing.xs,
+  },
+  demoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xs,
     marginTop: spacing.xs,
   },
 });

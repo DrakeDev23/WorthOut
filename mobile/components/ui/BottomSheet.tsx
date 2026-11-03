@@ -2,7 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import { Animated, Easing, Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { colors, motion, radius, spacing } from '@/constants/theme';
+import { colors, layout, motion, radius, spacing } from '@/constants/theme';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { AppText } from './AppText';
 import { IconButton } from './IconButton';
@@ -87,6 +87,9 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   sheet: {
+    width: '100%',
+    maxWidth: layout.maxContentWidth,
+    alignSelf: 'center',
     backgroundColor: colors.surface,
     borderTopLeftRadius: radius.xl,
     borderTopRightRadius: radius.xl,

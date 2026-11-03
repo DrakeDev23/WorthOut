@@ -2,7 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import { Animated, Easing, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { colors, radius, shadows, spacing } from '@/constants/theme';
+import { colors, layout, radius, shadows, spacing } from '@/constants/theme';
 import { AppText } from './AppText';
 import { Icon } from './Icon';
 
@@ -66,6 +66,8 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: spacing.lg,
     right: spacing.lg,
+    maxWidth: layout.maxContentWidth,
+    alignSelf: 'center',
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,

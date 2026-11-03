@@ -6,7 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppText } from '@/components/ui/AppText';
 import { Icon, type IconName } from '@/components/ui/Icon';
 import { PressableScale } from '@/components/ui/PressableScale';
-import { colors, motion, radius, shadows, spacing } from '@/constants/theme';
+import { colors, layout, motion, radius, shadows, spacing } from '@/constants/theme';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { BAR_HEIGHT, BAR_SIDE_INSET } from './metrics';
 
@@ -125,6 +125,7 @@ const styles = StyleSheet.create({
   bar: {
     flexDirection: 'row',
     width: '100%',
+    maxWidth: layout.maxContentWidth,
     height: BAR_HEIGHT,
     alignItems: 'center',
     backgroundColor: colors.surface,
