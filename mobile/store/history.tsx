@@ -1,10 +1,11 @@
-import React, { createContext, useCallback, useContext, useMemo, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 
-import { WORKOUT_HISTORY } from '@/data';
+import { historyRepository } from '@/repositories/history.repository';
 import type { WorkoutSession } from '@/types/models';
 
 interface HistoryContextValue {
   history: WorkoutSession[];
+  isLoading: boolean;
   getSession: (id: string) => WorkoutSession | undefined;
   addSession: (session: WorkoutSession) => void;
 }
@@ -12,23 +13,47 @@ interface HistoryContextValue {
 const HistoryContext = createContext<HistoryContextValue | null>(null);
 
 export function HistoryProvider({ children }: { children: React.ReactNode }) {
-  const [history, setHistory] = useState<WorkoutSession[]>(WORKOUT_HISTORY);
+  const [history, setHistory] = useState<WorkoutSession[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const addSession = useCallback((session: WorkoutSession) => {
-    setHistory((prev) => {
-      if (prev.some((item) => item.id === session.id)) return prev;
-      return [session, ...prev];
-    });
+  useEffect(() => {
+    let cancelled = false;
+    historyRepository
+      .getAll()
+      .then((loaded) => {
+        if (!cancelled) {
+          setHistory(loaded);
+          setIsLoading(false);
+        }
+      })
+      .catch((error) => {
+        console.error('[history] failed to load history:', error);
+        if (!cancelled) setIsLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
-  const getSession = useCallback(
-    (id: string) => history.find((item) => item.id === id),
-    [history]
-  );
+  const addSession = useCallback((session: WorkoutSession) => {
+    let shouldPersist = false;
+    setHistory((prev) => {
+      if (prev.some((item) => item.id === session.id)) return prev;
+      shouldPersist = true;
+      return [session, ...prev];
+    });
+    if (shouldPersist) {
+      historyRepository.saveCompletedWorkout(session).catch((error) => {
+        console.error('[history] failed to persist session:', error);
+      });
+    }
+  }, []);
+
+  const getSession = useCallback((id: string) => history.find((item) => item.id === id), [history]);
 
   const value = useMemo<HistoryContextValue>(
-    () => ({ history, getSession, addSession }),
-    [history, getSession, addSession]
+    () => ({ history, isLoading, getSession, addSession }),
+    [history, isLoading, getSession, addSession]
   );
 
   return <HistoryContext.Provider value={value}>{children}</HistoryContext.Provider>;

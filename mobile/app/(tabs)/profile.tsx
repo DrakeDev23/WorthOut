@@ -1,12 +1,13 @@
 import { useRouter } from 'expo-router';
-import React from 'react';
-import { Alert, StyleSheet, View } from 'react-native';
+import React, { useState } from 'react';
+import { StyleSheet, View } from 'react-native';
 
 import { AppText } from '@/components/ui/AppText';
 import { Avatar } from '@/components/ui/Avatar';
 import { SecondaryButton } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Chip } from '@/components/ui/Chip';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { Icon, type IconName } from '@/components/ui/Icon';
 import { PressableScale } from '@/components/ui/PressableScale';
 import { SectionHeader } from '@/components/ui/SectionHeader';
@@ -18,6 +19,11 @@ interface SettingRow {
   key: string;
   icon: IconName;
   label: string;
+}
+
+interface InfoMessage {
+  title: string;
+  message: string;
 }
 
 const SETTINGS: SettingRow[] = [
@@ -32,19 +38,15 @@ const SETTINGS: SettingRow[] = [
 export default function ProfileScreen() {
   const router = useRouter();
   const { user, signOut } = useSession();
+  const [signOutOpen, setSignOutOpen] = useState(false);
+  const [info, setInfo] = useState<InfoMessage | null>(null);
 
-  const handleSignOut = () => {
-    Alert.alert('Sign Out', 'Are you sure you want to sign out of Worthout?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Sign Out',
-        style: 'destructive',
-        onPress: () => {
-          signOut();
-          router.replace('/');
-        },
-      },
-    ]);
+  const handleSignOut = () => setSignOutOpen(true);
+
+  const performSignOut = () => {
+    setSignOutOpen(false);
+    signOut();
+    router.replace('/');
   };
 
   const handleSettingPress = (key: string) => {
@@ -53,34 +55,40 @@ export default function ProfileScreen() {
         router.push('/notifications');
         break;
       case 'theme':
-        Alert.alert(
-          'Theme',
-          'Worthout uses a high-contrast Dark Mode (#0A0C10) by default to keep battery draw low and readability sharp.'
-        );
+        setInfo({
+          title: 'Theme',
+          message:
+            'Worthout uses a high-contrast Dark Mode (#0A0C10) by default to keep battery draw low and readability sharp.',
+        });
         break;
       case 'about':
-        Alert.alert(
-          'About Worthout',
-          'Worthout — Every rep is worth it.\nVersion 0.1.0\nPlanned home workouts, active tracking, and analytics.'
-        );
+        setInfo({
+          title: 'About Worthout',
+          message:
+            'Worthout — Every rep is worth it.\nVersion 0.1.0\nPlanned home workouts, active tracking, and analytics.',
+        });
         break;
       case 'edit':
-        Alert.alert(
-          'Edit Profile',
-          `Profile information for ${user?.name ?? 'Athlete'} (${user?.email ?? 'you@worthout.app'}).`
-        );
+        setInfo({
+          title: 'Edit Profile',
+          message: `Profile information for ${user?.name ?? 'Athlete'} (${
+            user?.email ?? 'you@worthout.app'
+          }).`,
+        });
         break;
       case 'equipment':
-        Alert.alert(
-          'Equipment Preferences',
-          `Current equipment: ${user?.preferredEquipment?.join(', ') || 'Bodyweight'}`
-        );
+        setInfo({
+          title: 'Equipment Preferences',
+          message: `Current equipment: ${user?.preferredEquipment?.join(', ') || 'Bodyweight'}`,
+        });
         break;
       case 'workout':
-        Alert.alert(
-          'Workout Preferences',
-          `Weekly goal: ${user?.weeklyGoal ?? 5} workouts\nFocus: ${user?.fitnessGoal ?? 'Build strength at home'}`
-        );
+        setInfo({
+          title: 'Workout Preferences',
+          message: `Weekly goal: ${user?.weeklyGoal ?? 5} workouts\nFocus: ${
+            user?.fitnessGoal ?? 'Build strength at home'
+          }`,
+        });
         break;
       default:
         break;
@@ -142,6 +150,25 @@ export default function ProfileScreen() {
         title="Sign Out"
         accessibilityHint="Signs out and returns to the welcome screen"
         onPress={handleSignOut}
+      />
+
+      <ConfirmDialog
+        visible={signOutOpen}
+        title="Sign Out"
+        message="Are you sure you want to sign out of Worthout?"
+        confirmLabel="Sign Out"
+        cancelLabel="Cancel"
+        destructive
+        onConfirm={performSignOut}
+        onCancel={() => setSignOutOpen(false)}
+      />
+
+      <ConfirmDialog
+        visible={info !== null}
+        title={info?.title ?? ''}
+        message={info?.message}
+        infoOnly
+        onCancel={() => setInfo(null)}
       />
     </TabScreen>
   );

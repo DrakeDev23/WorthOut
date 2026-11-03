@@ -7,7 +7,6 @@ export function effortLabel(entry: RoutineExercise): string {
   return `${entry.reps} ${entry.reps === 1 ? 'rep' : 'reps'}`;
 }
 
-/** Short summary line for a routine exercise, e.g. "3 × 12 reps · 60s rest". */
 export function entrySummary(entry: RoutineExercise): string {
   const parts = [`${entry.sets} × ${effortLabel(entry)}`];
   if (entry.weightKg != null) parts.push(`${entry.weightKg}kg`);

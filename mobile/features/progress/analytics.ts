@@ -111,7 +111,10 @@ export function weeklyActivity(
   });
 }
 
-export function monthlyActivity(history: WorkoutSession[], reference: Date = new Date()): MonthActivity {
+export function monthlyActivity(
+  history: WorkoutSession[],
+  reference: Date = new Date()
+): MonthActivity {
   const inMonth = history.filter((session) => isSameMonth(new Date(session.date), reference));
   return {
     totalWorkouts: inMonth.length,
@@ -170,21 +173,11 @@ export function weeklyDurationTrend(
   return points;
 }
 
-/**
- * Percentage change between two totals, or null when it would be misleading
- * (previous period had zero activity). Callers should render null as "new".
- */
 export function safePercentChange(previous: number, current: number): number | null {
   if (previous <= 0) return null;
   return Math.round(((current - previous) / previous) * 100);
 }
 
-/**
- * Distribution of completed sets across muscle groups, highest first. Each
- * completed set of an exercise contributes once to that exercise's muscle
- * group. Exercises with unknown metadata are bucketed as 'Unknown'. History
- * stores only completed sets, so skipped/untouched work is already excluded.
- */
 export function muscleDistribution(
   history: WorkoutSession[],
   resolveMuscleGroup: MuscleGroupResolver
@@ -207,12 +200,12 @@ export function muscleDistribution(
     slices.push({ muscleGroup, sets, fraction: total > 0 ? sets / total : 0 });
   }
 
-  // Sort by sets desc, then name for stable ordering.
-  slices.sort((a, b) => b.sets - a.sets || String(a.muscleGroup).localeCompare(String(b.muscleGroup)));
+  slices.sort(
+    (a, b) => b.sets - a.sets || String(a.muscleGroup).localeCompare(String(b.muscleGroup))
+  );
   return slices;
 }
 
-/** Workouts on a specific local day, sorted newest-first. Input not mutated. */
 export function sessionsOnDay(history: WorkoutSession[], day: Date): WorkoutSession[] {
   const key = dayKeyFromDate(day);
   return history
@@ -221,7 +214,6 @@ export function sessionsOnDay(history: WorkoutSession[], day: Date): WorkoutSess
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 }
 
-/** True if any session occurred on the given local day. */
 export function hasWorkoutOn(history: WorkoutSession[], day: Date): boolean {
   const key = dayKeyFromDate(day);
   return history.some((session) => dayKeyFromISO(session.date) === key);
