@@ -78,7 +78,7 @@ export default function WorkoutCompleteScreen() {
   const durationSeconds = Math.floor(summary.durationMs / 1000);
   const completedDate = new Date(summary.finishedAt);
 
-  const leave = (path: '/(tabs)' | '/(tabs)/planner') => {
+  const leave = (path: '/(tabs)' | '/planner') => {
     discardWorkout();
     router.replace(path);
   };
@@ -154,7 +154,7 @@ export default function WorkoutCompleteScreen() {
 
         <View style={styles.footer}>
           <PrimaryButton title="Back to Dashboard" onPress={() => leave('/(tabs)')} />
-          <SecondaryButton title="Back to Planner" onPress={() => leave('/(tabs)/planner')} />
+          <SecondaryButton title="Back to Planner" onPress={() => leave('/planner')} />
         </View>
       </SafeAreaView>
     </View>

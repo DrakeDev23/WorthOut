@@ -13,6 +13,7 @@ import { StackScreenHeader } from '@/components/ui/StackScreenHeader';
 import { TabScreen } from '@/components/ui/TabScreen';
 import { Toast } from '@/components/ui/Toast';
 import { colors, radius, spacing } from '@/constants/theme';
+import { getExerciseById } from '@/data';
 import { formatMinutes } from '@/lib/format';
 import { EditExerciseSheet } from '@/features/planner/components/EditExerciseSheet';
 import { ExercisePickerSheet } from '@/features/planner/components/ExercisePickerSheet';
@@ -54,7 +55,7 @@ export default function RoutineDetailScreen() {
           title="Routine not found"
           message="This routine may have been deleted."
           actionLabel="Back to Planner"
-          onActionPress={() => router.replace('/(tabs)/planner')}
+          onActionPress={() => router.replace('/planner')}
         />
       </TabScreen>
     );
@@ -78,7 +79,7 @@ export default function RoutineDetailScreen() {
         style: 'destructive',
         onPress: () => {
           deleteRoutine(routine.id);
-          router.replace('/(tabs)/planner');
+          router.replace('/planner');
         },
       },
     ]);
@@ -91,8 +92,19 @@ export default function RoutineDetailScreen() {
   };
 
   const handleRemove = (entry: RoutineExercise) => {
-    removeExerciseFromRoutine(routine.id, entry.entryId);
-    setToast('Exercise removed.');
+    const exercise = getExerciseById(entry.exerciseId);
+    const exerciseName = exercise?.name ?? 'this exercise';
+    Alert.alert('Remove exercise?', `Remove "${exerciseName}" from this routine?`, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Remove',
+        style: 'destructive',
+        onPress: () => {
+          removeExerciseFromRoutine(routine.id, entry.entryId);
+          setToast('Exercise removed.');
+        },
+      },
+    ]);
   };
 
   const handleStartWorkout = () => {

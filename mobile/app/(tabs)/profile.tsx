@@ -1,6 +1,6 @@
 import { useRouter } from 'expo-router';
 import React from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Alert, StyleSheet, View } from 'react-native';
 
 import { AppText } from '@/components/ui/AppText';
 import { Avatar } from '@/components/ui/Avatar';
@@ -34,8 +34,57 @@ export default function ProfileScreen() {
   const { user, signOut } = useSession();
 
   const handleSignOut = () => {
-    signOut();
-    router.replace('/');
+    Alert.alert('Sign Out', 'Are you sure you want to sign out of Worthout?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Sign Out',
+        style: 'destructive',
+        onPress: () => {
+          signOut();
+          router.replace('/');
+        },
+      },
+    ]);
+  };
+
+  const handleSettingPress = (key: string) => {
+    switch (key) {
+      case 'notifications':
+        router.push('/notifications');
+        break;
+      case 'theme':
+        Alert.alert(
+          'Theme',
+          'Worthout uses a high-contrast Dark Mode (#0A0C10) by default to keep battery draw low and readability sharp.'
+        );
+        break;
+      case 'about':
+        Alert.alert(
+          'About Worthout',
+          'Worthout — Every rep is worth it.\nVersion 0.1.0\nPlanned home workouts, active tracking, and analytics.'
+        );
+        break;
+      case 'edit':
+        Alert.alert(
+          'Edit Profile',
+          `Profile information for ${user?.name ?? 'Athlete'} (${user?.email ?? 'you@worthout.app'}).`
+        );
+        break;
+      case 'equipment':
+        Alert.alert(
+          'Equipment Preferences',
+          `Current equipment: ${user?.preferredEquipment?.join(', ') || 'Bodyweight'}`
+        );
+        break;
+      case 'workout':
+        Alert.alert(
+          'Workout Preferences',
+          `Weekly goal: ${user?.weeklyGoal ?? 5} workouts\nFocus: ${user?.fitnessGoal ?? 'Build strength at home'}`
+        );
+        break;
+      default:
+        break;
+    }
   };
 
   return (
@@ -74,7 +123,7 @@ export default function ProfileScreen() {
               key={row.key}
               accessibilityRole="button"
               accessibilityLabel={row.label}
-              onPress={() => {}}
+              onPress={() => handleSettingPress(row.key)}
               style={styles.settingRow}
             >
               <View style={styles.settingIcon}>
