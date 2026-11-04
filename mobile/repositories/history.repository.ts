@@ -1,6 +1,7 @@
-import { asc, desc, eq, gte, inArray } from 'drizzle-orm';
+import { and, asc, desc, eq, gte, inArray, isNull } from 'drizzle-orm';
 
 import { db as defaultDb } from '@/database/client';
+import { LEGACY_LOCAL_ACCOUNT_ID, uuidV4 } from '@/database/ids';
 import type { DrizzleDatabase } from '@/database/db-types';
 import { toWorkoutSession } from '@/database/mappers';
 import {
@@ -13,10 +14,10 @@ import {
 import type { WorkoutSession } from '@/types/models';
 
 export class HistoryRepository {
-  constructor(private readonly db: DrizzleDatabase = defaultDb) {}
+  constructor(private readonly db: DrizzleDatabase = defaultDb, private readonly accountId = LEGACY_LOCAL_ACCOUNT_ID) {}
 
   async getAll(): Promise<WorkoutSession[]> {
-    const headers = await this.db.select().from(workoutHistory).orderBy(desc(workoutHistory.date));
+    const headers = await this.db.select().from(workoutHistory).where(and(eq(workoutHistory.accountId, this.accountId), isNull(workoutHistory.deletedAt))).orderBy(desc(workoutHistory.date));
     return this.hydrate(headers);
   }
 
@@ -24,7 +25,7 @@ export class HistoryRepository {
     const [header] = await this.db
       .select()
       .from(workoutHistory)
-      .where(eq(workoutHistory.id, sessionId))
+      .where(and(eq(workoutHistory.id, sessionId), eq(workoutHistory.accountId, this.accountId), isNull(workoutHistory.deletedAt)))
       .limit(1);
     if (!header) return undefined;
     const [session] = await this.hydrate([header]);
@@ -35,7 +36,7 @@ export class HistoryRepository {
     const headers = await this.db
       .select()
       .from(workoutHistory)
-      .where(gte(workoutHistory.date, startIso))
+      .where(and(gte(workoutHistory.date, startIso), eq(workoutHistory.accountId, this.accountId), isNull(workoutHistory.deletedAt)))
       .orderBy(desc(workoutHistory.date));
     const filtered = headers.filter((h) => h.date <= endIso);
     return this.hydrate(filtered);
@@ -45,7 +46,7 @@ export class HistoryRepository {
     const [existing] = await this.db
       .select({ id: workoutHistory.id })
       .from(workoutHistory)
-      .where(eq(workoutHistory.id, session.id))
+      .where(and(eq(workoutHistory.id, session.id), eq(workoutHistory.accountId, this.accountId)))
       .limit(1);
     if (existing) return false;
 
@@ -53,35 +54,44 @@ export class HistoryRepository {
       tx.insert(workoutHistory)
         .values({
           id: session.id,
+          accountId: this.accountId,
           routineId: session.routineId || null,
           routineNameSnapshot: session.routineName,
           date: session.date,
           durationMinutes: session.durationMinutes,
           totalSets: session.totalSets,
+          syncStatus: 'pending_insert',
+          clientUpdatedAt: session.date,
         })
         .run();
 
       session.exercises.forEach((exercise, exIndex) => {
-        const exerciseRowId = `${session.id}-ex-${exIndex}`;
+        const exerciseRowId = uuidV4();
         tx.insert(workoutHistoryExercises)
           .values({
             id: exerciseRowId,
             sessionId: session.id,
+            accountId: this.accountId,
             exerciseId: exercise.exerciseId,
             name: exercise.name,
             position: exIndex,
+            syncStatus: 'pending_insert',
+            clientUpdatedAt: session.date,
           })
           .run();
 
         exercise.sets.forEach((set, setIndex) => {
           tx.insert(workoutHistorySets)
             .values({
-              id: `${exerciseRowId}-set-${setIndex}`,
+              id: uuidV4(),
+              accountId: this.accountId,
               exerciseRef: exerciseRowId,
               position: setIndex,
               reps: set.reps,
               weightKg: set.weightKg ?? null,
               durationSeconds: set.durationSeconds ?? null,
+              syncStatus: 'pending_insert',
+              clientUpdatedAt: session.date,
             })
             .run();
         });
@@ -97,7 +107,7 @@ export class HistoryRepository {
     const exerciseRows = await this.db
       .select()
       .from(workoutHistoryExercises)
-      .where(inArray(workoutHistoryExercises.sessionId, sessionIds))
+      .where(and(inArray(workoutHistoryExercises.sessionId, sessionIds), eq(workoutHistoryExercises.accountId, this.accountId), isNull(workoutHistoryExercises.deletedAt)))
       .orderBy(asc(workoutHistoryExercises.position));
 
     const exerciseIds = exerciseRows.map((e) => e.id);
@@ -105,7 +115,7 @@ export class HistoryRepository {
       ? await this.db
           .select()
           .from(workoutHistorySets)
-          .where(inArray(workoutHistorySets.exerciseRef, exerciseIds))
+          .where(and(inArray(workoutHistorySets.exerciseRef, exerciseIds), eq(workoutHistorySets.accountId, this.accountId), isNull(workoutHistorySets.deletedAt)))
           .orderBy(asc(workoutHistorySets.position))
       : [];
 

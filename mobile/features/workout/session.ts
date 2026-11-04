@@ -1,4 +1,5 @@
 import { getExerciseById } from '@/data';
+import { uuidV4 } from '@/database/ids';
 import type { CompletedExercise, CompletedSet, Routine, WorkoutSession } from '@/types/models';
 import type {
   ActiveExercise,
@@ -8,10 +9,8 @@ import type {
   WorkoutSummary,
 } from '@/types/workout';
 
-let sessionSeq = 0;
 function nextSessionId(): string {
-  sessionSeq += 1;
-  return `session-${Date.now()}-${sessionSeq}`;
+  return uuidV4();
 }
 
 export function createActiveWorkout(routine: Routine, now: number = Date.now()): ActiveWorkout {

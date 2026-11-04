@@ -13,8 +13,19 @@ import type {
 } from '@/database/schema';
 
 describe('database mappers (pure, no SQLite)', () => {
+  const syncFields = {
+    accountId: '00000000-0000-4000-8000-000000000001',
+    syncStatus: 'synced',
+    clientUpdatedAt: '2026-01-01T00:00:00.000Z',
+    lastSyncedAt: null,
+    serverVersion: 0,
+    serverUpdatedAt: null,
+    deletedAt: null,
+  };
+
   it('maps a routine-exercise row, converting nulls to undefined', () => {
     const row: RoutineExerciseRow = {
+      ...syncFields,
       id: 'e1',
       routineId: 'r1',
       exerciseId: 'ex-squat',
@@ -39,6 +50,7 @@ describe('database mappers (pure, no SQLite)', () => {
 
   it('assembles a routine and recomputes derived fields from exercise order', () => {
     const row: RoutineRow = {
+      ...syncFields,
       id: 'r1',
       name: 'Legs',
       description: null,
@@ -48,6 +60,7 @@ describe('database mappers (pure, no SQLite)', () => {
     };
     const exerciseRows: RoutineExerciseRow[] = [
       {
+        ...syncFields,
         id: 'b',
         routineId: 'r1',
         exerciseId: 'ex-pushup',
@@ -59,6 +72,7 @@ describe('database mappers (pure, no SQLite)', () => {
         restSeconds: 60,
       },
       {
+        ...syncFields,
         id: 'a',
         routineId: 'r1',
         exerciseId: 'ex-squat',
@@ -96,6 +110,7 @@ describe('database mappers (pure, no SQLite)', () => {
 
   it('reassembles a workout session from header, exercises and sets', () => {
     const header: WorkoutHistoryRow = {
+      ...syncFields,
       id: 's1',
       routineId: 'r1',
       routineNameSnapshot: 'Push Day',
@@ -104,10 +119,11 @@ describe('database mappers (pure, no SQLite)', () => {
       totalSets: 3,
     };
     const exerciseRows: WorkoutHistoryExerciseRow[] = [
-      { id: 's1-ex-0', sessionId: 's1', exerciseId: 'ex-pushup', name: 'Push-Up', position: 0 },
+      { ...syncFields, id: 's1-ex-0', sessionId: 's1', exerciseId: 'ex-pushup', name: 'Push-Up', position: 0 },
     ];
     const setRows: WorkoutHistorySetRow[] = [
       {
+        ...syncFields,
         id: 's1-ex-0-set-1',
         exerciseRef: 's1-ex-0',
         position: 1,
@@ -116,6 +132,7 @@ describe('database mappers (pure, no SQLite)', () => {
         durationSeconds: null,
       },
       {
+        ...syncFields,
         id: 's1-ex-0-set-0',
         exerciseRef: 's1-ex-0',
         position: 0,

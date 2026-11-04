@@ -10,7 +10,8 @@ class Settings(BaseSettings):
     HOST: str = "0.0.0.0"
     PORT: int = 8000
 
-    DATABASE_URL: str = "postgresql+asyncpg://worthout_user:worthout_pass@postgres:5432/worthout_db"
+    DATABASE_URL: str
+    SQL_ECHO: bool = False
 
     CLERK_SECRET_KEY: str = ""
     CLERK_PUBLISHABLE_KEY: str = ""

@@ -9,13 +9,19 @@ import type {
 
 import type {
   RoutineExerciseRow,
+  RoutineExerciseInsert,
   RoutineRow,
   WorkoutHistoryExerciseRow,
   WorkoutHistoryRow,
   WorkoutHistorySetRow,
 } from './schema';
 
-export function toRoutineExercise(row: RoutineExerciseRow): RoutineExercise {
+type RoutineExerciseFields = Pick<
+  RoutineExerciseRow,
+  'id' | 'routineId' | 'exerciseId' | 'position' | 'sets' | 'reps' | 'restSeconds'
+> & Pick<Partial<RoutineExerciseRow>, 'durationSeconds' | 'weightKg'>;
+
+export function toRoutineExercise(row: RoutineExerciseFields): RoutineExercise {
   return {
     entryId: row.id,
     exerciseId: row.exerciseId,
@@ -46,7 +52,7 @@ export function toRoutineExerciseRow(
   routineId: string,
   entry: RoutineExercise,
   position: number
-): RoutineExerciseRow {
+): Pick<RoutineExerciseInsert, 'id' | 'routineId' | 'exerciseId' | 'position' | 'sets' | 'reps' | 'durationSeconds' | 'weightKg' | 'restSeconds'> {
   return {
     id: entry.entryId,
     routineId,

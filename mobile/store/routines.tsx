@@ -1,6 +1,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 
 import { getExerciseById } from '@/data';
+import { uuidV4 } from '@/database/ids';
 import { deriveFocus, estimateMinutes, routineMuscleGroups } from '@/features/routine-derive';
 import { routineRepository } from '@/repositories/routine.repository';
 import type { MuscleGroup, Routine, RoutineCategory, RoutineExercise } from '@/types/models';
@@ -8,16 +9,12 @@ import type { MuscleGroup, Routine, RoutineCategory, RoutineExercise } from '@/t
 export { estimateMinutes, routineMuscleGroups };
 export type { MuscleGroup };
 
-let entrySeq = 0;
 function nextEntryId(): string {
-  entrySeq += 1;
-  return `entry-${Date.now()}-${entrySeq}`;
+  return uuidV4();
 }
 
-let routineSeq = 0;
 function nextRoutineId(): string {
-  routineSeq += 1;
-  return `routine-${Date.now()}-${routineSeq}`;
+  return uuidV4();
 }
 
 function makeEntry(exerciseId: string): RoutineExercise | null {

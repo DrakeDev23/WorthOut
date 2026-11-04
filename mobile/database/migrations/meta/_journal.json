@@ -8,6 +8,13 @@
       "when": 1793699669862,
       "tag": "0000_damp_mulholland_black",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1793703269862,
+      "tag": "0001_account_sync_metadata",
+      "breakpoints": true
     }
   ]
 }

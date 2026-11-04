@@ -1,12 +1,17 @@
 import { eq } from 'drizzle-orm';
 
 import { db as defaultDb } from '@/database/client';
+import { LEGACY_LOCAL_ACCOUNT_ID } from '@/database/ids';
 import type { DrizzleDatabase } from '@/database/db-types';
 import { ACTIVE_SESSION_ID, activeSession } from '@/database/schema';
 import type { ActiveWorkout } from '@/types/workout';
 
 export class WorkoutRepository {
-  constructor(private readonly db: DrizzleDatabase = defaultDb) {}
+  constructor(private readonly db: DrizzleDatabase = defaultDb, private readonly accountId = LEGACY_LOCAL_ACCOUNT_ID) {}
+
+  private get activeId(): string {
+    return `${this.accountId}:${ACTIVE_SESSION_ID}`;
+  }
 
   async saveActiveSession(
     workout: ActiveWorkout,
@@ -15,10 +20,10 @@ export class WorkoutRepository {
     const payload = JSON.stringify(workout);
     await this.db
       .insert(activeSession)
-      .values({ id: ACTIVE_SESSION_ID, payload, updatedAt })
+      .values({ id: this.activeId, accountId: this.accountId, payload, updatedAt })
       .onConflictDoUpdate({
         target: activeSession.id,
-        set: { payload, updatedAt },
+        set: { accountId: this.accountId, payload, updatedAt },
       });
   }
 
@@ -30,7 +35,7 @@ export class WorkoutRepository {
     const [row] = await this.db
       .select()
       .from(activeSession)
-      .where(eq(activeSession.id, ACTIVE_SESSION_ID))
+      .where(eq(activeSession.id, this.activeId))
       .limit(1);
     if (!row) return null;
     try {
@@ -42,7 +47,7 @@ export class WorkoutRepository {
   }
 
   async deleteActiveSession(): Promise<void> {
-    await this.db.delete(activeSession).where(eq(activeSession.id, ACTIVE_SESSION_ID));
+    await this.db.delete(activeSession).where(eq(activeSession.id, this.activeId));
   }
 }
 
