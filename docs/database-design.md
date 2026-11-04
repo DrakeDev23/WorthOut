@@ -255,6 +255,10 @@ exercises
 3. Deleting a `workout_session` cascades and deletes its `workout_exercises` and associated `exercise_sets`.
 4. Deleting an `exercise` from the catalog is restricted (`ON DELETE RESTRICT`) if referenced by routine exercises or workout exercises to prevent orphaned references.
 
+### Ownership enforcement boundary
+
+The database enforces ownership of top-level `workout_routines` and `workout_sessions` through their required `user_id` foreign keys. A `workout_session.routine_id` foreign key guarantees that the routine exists, but the approved `ON DELETE SET NULL` behavior does not permit a composite `(user_id, routine_id)` foreign key without making the session owner nullable or changing the approved cascade behavior. Therefore, every service-layer operation that accepts both a user and a routine/session reference must use an ownership-scoped query before writing. The reusable backend guard is implemented in `backend/app/services/ownership.py`; API and synchronization services must call it before creating or updating aggregates.
+
 ---
 
 ## 6. Constraints and Validation Rules
@@ -304,3 +308,92 @@ To support fast offline UI queries, historical aggregations, and delta synchroni
   - `CREATE INDEX idx_local_sessions_sync ON workout_sessions(sync_status);`
 - `workout_exercises`: `CREATE INDEX idx_local_workout_ex_session ON workout_exercises(session_id);`
 - `exercise_sets`: `CREATE INDEX idx_local_sets_workout_ex ON exercise_sets(workout_exercise_id);`
+
+---
+
+## 8. Mobile schema reconciliation (Stage 9.3)
+
+This section records the finalized mobile-side reconciliation with `docs/api-contract.md`.
+
+### 8.1 Current implementation versus target
+
+**Verified current implementation:** Drizzle currently persists routine aggregates, completed-workout snapshots, and one local active-workout JSON payload. The active payload is recovery state, not cloud history. The current tables do not yet contain account ownership or synchronization metadata.
+
+**Target mobile implementation:** SQLite remains the local source of truth. User-owned rows receive `account_id`, syncable rows receive local/server synchronization metadata, and repository reads/writes are always scoped to the active local account.
+
+The current normalized cloud entities are intentionally not introduced as a replacement for the existing history snapshot tables. Existing workout history remains a local snapshot and will map to the cloud `workout_sessions`, `workout_exercises`, and `exercise_sets` aggregate during a later sync implementation.
+
+### 8.2 Local account table
+
+The mobile database uses `local_accounts` as the account boundary:
+
+| Column | SQLite type | Rules |
+|---|---|---|
+| `id` | TEXT | UUID v4 primary key |
+| `clerk_user_id` | TEXT | Nullable until Clerk integration; unique when present |
+| `display_name` | TEXT | Nullable cached identity field |
+| `email` | TEXT | Nullable cached identity field |
+| `is_active` | INTEGER | One active local account at a time |
+| `created_at` | TEXT | RFC 3339 UTC |
+| `updated_at` | TEXT | RFC 3339 UTC |
+
+Migration `0001_account_sync_metadata` creates a legacy local account and assigns existing rows to it. This is deliberately non-destructive. A later account-bootstrap decision may claim or export legacy data; the migration does not silently associate it with a Clerk identity.
+
+### 8.3 Account ownership
+
+The following tables contain `account_id`:
+
+- `routines`
+- `routine_exercises`
+- `workout_history`
+- `workout_history_exercises`
+- `workout_history_sets`
+- `active_session`
+
+Repositories scope all reads, updates, deletes, and active-session recovery by `account_id`. The active session key is account-scoped as `<account_id>:current`; active recovery remains local-only and is never placed in the sync queue.
+
+### 8.4 Local synchronization metadata
+
+Each syncable local table contains:
+
+| Column | Meaning |
+|---|---|
+| `sync_status` | `synced`, `pending_insert`, `pending_update`, or `pending_delete` |
+| `client_updated_at` | Client event time for diagnostics and upload metadata only |
+| `last_synced_at` | Last successful server acknowledgement |
+| `server_version` | Last server version known locally; default `0` |
+| `server_updated_at` | Last server timestamp returned by the backend |
+| `deleted_at` | Local tombstone timestamp; nullable |
+
+Client timestamps never determine conflict winners. The future sync layer will use the server `version` and opaque change cursor defined in `docs/api-contract.md`.
+
+### 8.5 UUID v4 policy
+
+New routine IDs, routine-exercise IDs, workout IDs, and generated history child IDs use UUID v4. IDs are generated once and retained through retries and synchronization. The mobile helper is `mobile/database/ids.ts`.
+
+Existing seeded/demo IDs and persisted legacy IDs are not rewritten in place by the additive migration. Existing relationships therefore remain intact. Before enabling cloud synchronization for those records, a dedicated relationship-preserving migration must create a UUID mapping for each parent and child, update every foreign-key reference in one transaction, and retain the mapping for retry safety.
+
+### 8.6 Tombstones and repository behavior
+
+Normal routine deletion now marks the routine and its children with `deleted_at` and `sync_status = 'pending_delete'`. Ordinary repository reads exclude tombstones. The physical rows remain available for future synchronization.
+
+Routine exercise replacement marks omitted children as tombstones and upserts retained/new children in one local transaction. Completed workout snapshots remain independent of routine deletion and continue to expose their stored routine and exercise names.
+
+### 8.7 Migration safety
+
+Migration `0001_account_sync_metadata.sql` is additive:
+
+1. Creates `local_accounts`.
+2. Inserts a deterministic legacy account.
+3. Adds ownership and metadata columns with compatibility defaults.
+4. Backfills client timestamps from existing row timestamps.
+5. Converts the existing active-session key to the legacy account-scoped key.
+6. Adds account/sync indexes.
+
+It does not drop tables, delete rows, rewrite routine/history IDs, or remove completed snapshots. The migration must be followed by tests against both an empty database and a database populated using migration `0000`.
+
+### 8.8 Remaining implementation decisions
+
+- The first Clerk user who encounters legacy local data must either claim it explicitly or start with a clean account; automatic claiming is not approved.
+- Full local multi-account switching requires an account-context provider and a local-data retention policy.
+- A later migration must add normalized local workout session tables only if the sync implementation needs field-level mutations; the current snapshot tables remain the compatibility source for completed history.

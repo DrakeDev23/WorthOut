@@ -8,27 +8,38 @@ import * as schema from '@/database/schema';
 
 export type TestDatabase = BetterSQLite3Database<typeof schema>;
 
-const MIGRATION_FILE = join(
+const MIGRATION_FILES = [
+  join(
   __dirname,
   '..',
   '..',
   'database',
   'migrations',
   '0000_damp_mulholland_black.sql'
-);
+  ),
+  join(
+    __dirname,
+    '..',
+    '..',
+    'database',
+    'migrations',
+    '0001_account_sync_metadata.sql'
+  ),
+];
 
 export function createTestDatabase(): { db: TestDatabase; sqlite: Database.Database } {
   const sqlite = new Database(':memory:');
   sqlite.pragma('foreign_keys = ON');
 
-  const migrationSql = readFileSync(MIGRATION_FILE, 'utf-8');
-
-  const statements = migrationSql
-    .split('--> statement-breakpoint')
-    .map((s) => s.trim())
-    .filter(Boolean);
-  for (const statement of statements) {
-    sqlite.exec(statement);
+  for (const migrationFile of MIGRATION_FILES) {
+    const migrationSql = readFileSync(migrationFile, 'utf-8');
+    const statements = migrationSql
+      .split('--> statement-breakpoint')
+      .map((s) => s.trim())
+      .filter(Boolean);
+    for (const statement of statements) {
+      sqlite.exec(statement);
+    }
   }
 
   const db = drizzle(sqlite, { schema });
