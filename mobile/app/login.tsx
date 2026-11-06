@@ -1,3 +1,4 @@
+import { useAuth, useSignIn } from '@clerk/expo';
 import { useRouter } from 'expo-router';
 import React, { useRef, useState } from 'react';
 import { StyleSheet, View, type TextInputInstance } from 'react-native';
@@ -12,13 +13,14 @@ import { AuthScreenLayout } from '@/features/auth/components/AuthScreenLayout';
 import { FormNotice, type FormNoticeState } from '@/features/auth/components/FormNotice';
 import { validateLogin, type LoginValues } from '@/features/auth/validation';
 import { useForm } from '@/hooks/useForm';
-import { useSession } from '@/store/session';
+import { getClerkErrorMessage } from '@/services/auth/clerkErrors';
 
 const INITIAL_VALUES: LoginValues = { email: '', password: '' };
 
 export default function LoginScreen() {
   const router = useRouter();
-  const { signIn } = useSession();
+  const { isLoaded } = useAuth();
+  const { signIn } = useSignIn();
   const emailRef = useRef<TextInputInstance>(null);
   const passwordRef = useRef<TextInputInstance>(null);
   const [loading, setLoading] = useState(false);
@@ -36,15 +38,51 @@ export default function LoginScreen() {
 
   const handleSubmit = submit(
     async ({ email, password }) => {
+      if (!isLoaded || !signIn) {
+        setNotice({
+          tone: 'error',
+          title: "Couldn't log you in",
+          message: 'Authentication is still loading. Try again in a moment.',
+        });
+        return;
+      }
+
       setNotice(null);
       setLoading(true);
       try {
-        const result = await signIn(email.trim(), password);
-        if (result.status === 'success') {
-          router.replace('/(tabs)');
-        } else {
-          setNotice({ tone: 'error', title: "Couldn't log you in", message: result.message });
+        const { error } = await signIn.password({
+          emailAddress: email.trim().toLowerCase(),
+          password,
+        });
+        if (error) {
+          setNotice({
+            tone: 'error',
+            title: "Couldn't log you in",
+            message: getClerkErrorMessage(error, 'Invalid email or password.'),
+          });
+          return;
         }
+
+        if (signIn.status === 'complete') {
+          await signIn.finalize({
+            navigate: () => {
+              router.replace('/(tabs)');
+            },
+          });
+          return;
+        }
+
+        setNotice({
+          tone: 'error',
+          title: "Couldn't log you in",
+          message: 'Additional verification is required for this account.',
+        });
+      } catch (error) {
+        setNotice({
+          tone: 'error',
+          title: "Couldn't log you in",
+          message: getClerkErrorMessage(error, 'Something went wrong. Please try again.'),
+        });
       } finally {
         setLoading(false);
       }
@@ -55,18 +93,8 @@ export default function LoginScreen() {
   const handleForgotPassword = () => {
     setNotice({
       tone: 'info',
-      title: 'Password reset is coming soon',
-      message: 'Resetting a password will be available once real accounts are connected.',
-    });
-  };
-
-  const fillDemoCredentials = () => {
-    setValue('email', 'drake@gmail.com');
-    setValue('password', 'drakegwapo123');
-    setNotice({
-      tone: 'info',
-      title: 'Demo credentials applied',
-      message: 'Tap Log In to enter the dashboard as Drake.',
+      title: 'Reset password in Clerk',
+      message: 'Use your Clerk account portal or contact support to reset your password.',
     });
   };
 
@@ -130,17 +158,6 @@ export default function LoginScreen() {
       </View>
 
       <PrimaryButton title="Log In" onPress={handleSubmit} loading={loading} />
-
-      <View style={styles.demoRow}>
-        <AppText variant="caption" tone="subtle">
-          Testing?
-        </AppText>
-        <TextLink
-          label="Fill demo credentials"
-          accessibilityHint="Fills test account credentials"
-          onPress={fillDemoCredentials}
-        />
-      </View>
     </AuthScreenLayout>
   );
 }
@@ -148,13 +165,6 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   forgotRow: {
     alignItems: 'flex-end',
-    marginTop: spacing.xs,
-  },
-  demoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.xs,
     marginTop: spacing.xs,
   },
 });

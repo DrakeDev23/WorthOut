@@ -7,4 +7,3 @@ export {
 } from './exercises';
 export { ROUTINES, TODAYS_ROUTINE_ID, getRoutineById } from './routines';
 export { WORKOUT_HISTORY } from './history';
-export { MOCK_USER } from './user';

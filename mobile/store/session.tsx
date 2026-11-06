@@ -1,49 +1,59 @@
-import React, { createContext, useCallback, useContext, useMemo, useState } from 'react';
+import { useAuth, useUser } from '@clerk/expo';
+import React, { createContext, useCallback, useContext, useMemo } from 'react';
 
-import { MOCK_USER } from '@/data';
-import { authService, type AuthResult } from '@/services/auth';
 import type { User } from '@/types/models';
 
 interface SessionContextValue {
   user: User | null;
   isAuthenticated: boolean;
-  signIn: (email: string, password: string) => Promise<AuthResult>;
-  signUp: (name: string, email: string, password: string) => Promise<AuthResult>;
-  signOut: () => void;
+  isLoaded: boolean;
+  signOut: () => Promise<void>;
 }
 
 const SessionContext = createContext<SessionContextValue | null>(null);
 
+function mapClerkUser(
+  clerkUser: NonNullable<ReturnType<typeof useUser>['user']> | null | undefined
+): User | null {
+  if (!clerkUser) {
+    return null;
+  }
+
+  const email = clerkUser.primaryEmailAddress?.emailAddress ?? '';
+  const name =
+    clerkUser.fullName?.trim() ||
+    [clerkUser.firstName, clerkUser.lastName].filter(Boolean).join(' ').trim() ||
+    email.split('@')[0] ||
+    'Athlete';
+
+  return {
+    id: clerkUser.id,
+    name,
+    email,
+    preferredEquipment: [],
+    fitnessGoal: '',
+    weeklyGoal: 5,
+  };
+}
+
 export function SessionProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
+  const { isLoaded, isSignedIn, signOut: clerkSignOut } = useAuth();
+  const { user: clerkUser } = useUser();
 
-  const signIn = useCallback(async (email: string, password: string) => {
-    const result = await authService.signIn({ email: email.trim(), password });
-    if (result.status === 'success') {
-      setUser({ ...MOCK_USER, email: email.trim().toLowerCase() || MOCK_USER.email });
-    }
-    return result;
-  }, []);
+  const user = useMemo(() => mapClerkUser(clerkUser), [clerkUser]);
 
-  const signUp = useCallback(async (name: string, email: string, password: string) => {
-    const result = await authService.signUp({ name: name.trim(), email: email.trim(), password });
-    if (result.status === 'success') {
-      setUser({
-        ...MOCK_USER,
-        name: name.trim() || MOCK_USER.name,
-        email: email.trim().toLowerCase() || MOCK_USER.email,
-      });
-    }
-    return result;
-  }, []);
-
-  const signOut = useCallback(() => {
-    setUser(null);
-  }, []);
+  const signOut = useCallback(async () => {
+    await clerkSignOut();
+  }, [clerkSignOut]);
 
   const value = useMemo<SessionContextValue>(
-    () => ({ user, isAuthenticated: user !== null, signIn, signUp, signOut }),
-    [user, signIn, signUp, signOut]
+    () => ({
+      user,
+      isAuthenticated: Boolean(isSignedIn),
+      isLoaded,
+      signOut,
+    }),
+    [user, isSignedIn, isLoaded, signOut]
   );
 
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;

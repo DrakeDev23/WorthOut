@@ -97,7 +97,7 @@ export interface User {
   name: string;
   email: string;
   bio?: string;
-  preferredEquipment: Equipment[];
-  fitnessGoal: string;
-  weeklyGoal: number;
+  preferredEquipment?: Equipment[];
+  fitnessGoal?: string;
+  weeklyGoal?: number;
 }
