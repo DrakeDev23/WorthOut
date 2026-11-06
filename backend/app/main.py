@@ -2,7 +2,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
-from app.routers import health
+from app.core.errors import ApiError, api_error_handler
+from app.routers import health, users
 
 
 def create_app() -> FastAPI:
@@ -20,7 +21,9 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
 
+    app.add_exception_handler(ApiError, api_error_handler)
     app.include_router(health.router)
+    app.include_router(users.router)
 
     return app
 

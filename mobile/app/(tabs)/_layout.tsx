@@ -1,16 +1,9 @@
-import { Redirect, Tabs } from 'expo-router';
+import { Tabs } from 'expo-router';
 import React from 'react';
 
 import { TabBar } from '@/features/navigation/TabBar';
-import { useSession } from '@/store/session';
 
 export default function TabsLayout() {
-  const { isAuthenticated } = useSession();
-
-  if (!isAuthenticated) {
-    return <Redirect href="/" />;
-  }
-
   return (
     <Tabs screenOptions={{ headerShown: false }} tabBar={(props) => <TabBar {...props} />}>
       <Tabs.Screen name="index" options={{ title: 'Home' }} />

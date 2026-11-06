@@ -1,3 +1,4 @@
+import { useAuth, useSignUp } from '@clerk/expo';
 import { useRouter } from 'expo-router';
 import React, { useRef, useState, type RefObject } from 'react';
 import { StyleSheet, type TextInputInstance } from 'react-native';
@@ -16,7 +17,7 @@ import {
   type RegisterValues,
 } from '@/features/auth/validation';
 import { useForm } from '@/hooks/useForm';
-import { useSession } from '@/store/session';
+import { getClerkErrorMessage } from '@/services/auth/clerkErrors';
 
 const NO_AUTOFILL = { autoComplete: 'off', importantForAutofill: 'no' } as const;
 
@@ -24,11 +25,13 @@ const INITIAL_VALUES: RegisterValues = { name: '', email: '', password: '', conf
 
 export default function RegisterScreen() {
   const router = useRouter();
-  const { signUp } = useSession();
+  const { isLoaded } = useAuth();
+  const { signUp } = useSignUp();
   const nameRef = useRef<TextInputInstance>(null);
   const emailRef = useRef<TextInputInstance>(null);
   const passwordRef = useRef<TextInputInstance>(null);
   const confirmRef = useRef<TextInputInstance>(null);
+  const codeRef = useRef<TextInputInstance>(null);
   const fieldRefs: Record<keyof RegisterValues, RefObject<TextInputInstance | null>> = {
     name: nameRef,
     email: emailRef,
@@ -37,6 +40,8 @@ export default function RegisterScreen() {
   };
 
   const [loading, setLoading] = useState(false);
+  const [pendingVerification, setPendingVerification] = useState(false);
+  const [verificationCode, setVerificationCode] = useState('');
   const [notice, setNotice] = useState<FormNoticeState | null>(null);
 
   const { values, errors, setValue, touch, submit } = useForm<RegisterValues>({
@@ -51,25 +56,151 @@ export default function RegisterScreen() {
 
   const handleSubmit = submit(
     async ({ name, email, password }) => {
+      if (!isLoaded || !signUp) {
+        setNotice({
+          tone: 'error',
+          title: "Couldn't create your account",
+          message: 'Authentication is still loading. Try again in a moment.',
+        });
+        return;
+      }
+
       setNotice(null);
       setLoading(true);
       try {
-        const result = await signUp(name.trim(), email.trim(), password);
-        if (result.status === 'success') {
-          router.replace('/(tabs)');
-        } else {
+        const { error } = await signUp.password({
+          emailAddress: email.trim().toLowerCase(),
+          password,
+          firstName: name.trim(),
+        });
+        if (error) {
           setNotice({
             tone: 'error',
             title: "Couldn't create your account",
-            message: result.message,
+            message: getClerkErrorMessage(error, 'Unable to create your account.'),
           });
+          return;
         }
+
+        const { error: sendError } = await signUp.verifications.sendEmailCode();
+        if (sendError) {
+          setNotice({
+            tone: 'error',
+            title: "Couldn't send verification code",
+            message: getClerkErrorMessage(sendError, 'Check your email settings and try again.'),
+          });
+          return;
+        }
+
+        setPendingVerification(true);
+        setNotice({
+          tone: 'info',
+          title: 'Check your email',
+          message: 'Enter the verification code we sent to finish creating your account.',
+        });
+      } catch (error) {
+        setNotice({
+          tone: 'error',
+          title: "Couldn't create your account",
+          message: getClerkErrorMessage(error, 'Something went wrong. Please try again.'),
+        });
       } finally {
         setLoading(false);
       }
     },
     (firstInvalid) => fieldRefs[firstInvalid].current?.focus()
   );
+
+  const handleVerify = async () => {
+    if (!isLoaded || !signUp) {
+      return;
+    }
+    if (!verificationCode.trim()) {
+      setNotice({
+        tone: 'error',
+        title: 'Code required',
+        message: 'Enter the verification code from your email.',
+      });
+      return;
+    }
+
+    setLoading(true);
+    setNotice(null);
+    try {
+      const { error } = await signUp.verifications.verifyEmailCode({
+        code: verificationCode.trim(),
+      });
+      if (error) {
+        setNotice({
+          tone: 'error',
+          title: "Couldn't verify email",
+          message: getClerkErrorMessage(error, 'Invalid or expired verification code.'),
+        });
+        return;
+      }
+
+      const { error: finalizeError } = await signUp.finalize({
+        navigate: () => {
+          router.replace('/(tabs)');
+        },
+      });
+      if (finalizeError) {
+        setNotice({
+          tone: 'error',
+          title: "Couldn't finish sign-up",
+          message: getClerkErrorMessage(finalizeError, 'Please try signing in.'),
+        });
+      }
+    } catch (error) {
+      setNotice({
+        tone: 'error',
+        title: "Couldn't verify email",
+        message: getClerkErrorMessage(error, 'Something went wrong. Please try again.'),
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (pendingVerification) {
+    return (
+      <AuthScreenLayout
+        title="Verify your email"
+        subtitle="Enter the code Clerk sent to your inbox."
+        footer={
+          <>
+            <AppText variant="label" tone="muted">
+              Wrong email?
+            </AppText>
+            <TextLink
+              label="Start over"
+              onPress={() => {
+                setPendingVerification(false);
+                setVerificationCode('');
+                setNotice(null);
+              }}
+            />
+          </>
+        }
+      >
+        <FormNotice notice={notice} />
+        <CustomInput
+          label="Verification code"
+          placeholder="123456"
+          value={verificationCode}
+          inputRef={codeRef}
+          onChangeText={setVerificationCode}
+          keyboardType="number-pad"
+          autoCapitalize="none"
+          autoCorrect={false}
+          returnKeyType="go"
+          onSubmitEditing={handleVerify}
+          editable={!loading}
+        />
+        <PrimaryButton title="Verify and continue" onPress={handleVerify} loading={loading} />
+      </AuthScreenLayout>
+    );
+  }
 
   return (
     <AuthScreenLayout

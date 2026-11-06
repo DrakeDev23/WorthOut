@@ -43,10 +43,11 @@ export default function ProfileScreen() {
 
   const handleSignOut = () => setSignOutOpen(true);
 
-  const performSignOut = () => {
+  const performSignOut = async () => {
     setSignOutOpen(false);
-    signOut();
-    router.replace('/');
+    // Stack.Protected in the root layout swaps to the welcome screens.
+    // Do not also call router.replace — that caused the logout redirect loop.
+    await signOut();
   };
 
   const handleSettingPress = (key: string) => {
