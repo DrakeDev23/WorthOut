@@ -46,3 +46,21 @@ async def get_current_user(
         )
     except SQLAlchemyError as exc:
         raise service_unavailable("Unable to resolve authenticated user.") from exc
+
+
+async def get_current_user_allow_deleted(
+    token: str = Depends(get_bearer_token),
+    session: AsyncSession = Depends(get_db_session),
+) -> User:
+    """Resolve authenticated user allowing soft-deleted accounts for idempotent deletion."""
+    claims = await verify_clerk_bearer_token(token)
+    try:
+        return await get_or_provision_user(
+            session,
+            clerk_user_id=claims.sub,
+            email=claims.email,
+            display_name=claims.display_name,
+            allow_deleted=True,
+        )
+    except SQLAlchemyError as exc:
+        raise service_unavailable("Unable to resolve authenticated user.") from exc
