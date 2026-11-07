@@ -1,12 +1,19 @@
 from __future__ import annotations
 
+import os
 import time
-from collections.abc import Iterator
+from collections.abc import AsyncIterator, Iterator
 from typing import Any
 
 import pytest
 from cryptography.hazmat.primitives.asymmetric import rsa
+from httpx import ASGITransport, AsyncClient
 from jwt.algorithms import RSAAlgorithm
+from sqlalchemy.ext.asyncio import (
+    AsyncSession,
+    async_sessionmaker,
+    create_async_engine,
+)
 
 from app.core.clerk_jwt import (
     ClerkJwtVerifier,
@@ -14,7 +21,19 @@ from app.core.clerk_jwt import (
     reset_clerk_jwt_verifier_for_tests,
 )
 from app.core.config import settings
-from tests.jwt_helpers import TEST_AUDIENCE, TEST_ISSUER, TEST_JWKS_URL, TEST_KID
+from app.db.session import get_db_session
+from app.main import app
+from tests.jwt_helpers import (
+    TEST_AUDIENCE,
+    TEST_ISSUER,
+    TEST_JWKS_URL,
+    TEST_KID,
+)
+
+TEST_DATABASE_URL = os.getenv(
+    "TEST_DATABASE_URL",
+    "postgresql+asyncpg://worthout_user:worthout_pass@localhost:5433/worthout_db",
+)
 
 
 @pytest.fixture
@@ -72,3 +91,38 @@ def configured_verifier(
     reset_clerk_jwt_verifier_for_tests(verifier)
     yield verifier, rsa_keypair[0]
     reset_clerk_jwt_verifier_for_tests()
+
+
+@pytest.fixture
+async def db_session_factory() -> AsyncIterator[async_sessionmaker[AsyncSession]]:
+    if not TEST_DATABASE_URL:
+        pytest.skip("TEST_DATABASE_URL is required for PostgreSQL integration tests")
+    engine = create_async_engine(TEST_DATABASE_URL, pool_pre_ping=True)
+    factory = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+    yield factory
+    await engine.dispose()
+
+
+@pytest.fixture
+async def api_client(
+    configured_verifier: tuple[ClerkJwtVerifier, rsa.RSAPrivateKey],
+    db_session_factory: async_sessionmaker[AsyncSession],
+) -> AsyncIterator[
+    tuple[AsyncClient, rsa.RSAPrivateKey, async_sessionmaker[AsyncSession]]
+]:
+    _verifier, private_key = configured_verifier
+
+    async def override_db() -> AsyncIterator[AsyncSession]:
+        async with db_session_factory() as session:
+            try:
+                yield session
+                await session.commit()
+            except Exception:
+                await session.rollback()
+                raise
+
+    app.dependency_overrides[get_db_session] = override_db
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        yield client, private_key, db_session_factory
+    app.dependency_overrides.clear()

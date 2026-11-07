@@ -13,3 +13,8 @@ class UserMeResponse(BaseModel):
     email: str | None = None
     created_at: datetime = Field(description="RFC 3339 UTC timestamp")
     updated_at: datetime = Field(description="RFC 3339 UTC timestamp")
+
+
+class UserDeletionResponse(BaseModel):
+    deletion_id: UUID
+    status: str = "pending"

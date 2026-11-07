@@ -2,6 +2,8 @@ from typing import Any
 from uuid import uuid4
 
 from fastapi import HTTPException, Request, status
+from fastapi.encoders import jsonable_encoder
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
 
@@ -56,6 +58,32 @@ async def api_error_handler(_request: Request, exc: ApiError) -> JSONResponse:
     )
 
 
+async def validation_error_handler(
+    _request: Request, exc: RequestValidationError
+) -> JSONResponse:
+    request_id = new_request_id()
+    return JSONResponse(
+        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        content=error_body(
+            code="validation_error",
+            message="Request validation failed.",
+            request_id=request_id,
+            details={"errors": jsonable_encoder(exc.errors())},
+        ),
+    )
+
+
+def bad_request(
+    message: str = "Bad request.", details: dict[str, Any] | None = None
+) -> ApiError:
+    return ApiError(
+        status.HTTP_400_BAD_REQUEST,
+        code="bad_request",
+        message=message,
+        details=details,
+    )
+
+
 def unauthorized(
     message: str = "Missing or invalid authentication credentials.",
 ) -> ApiError:
@@ -64,6 +92,51 @@ def unauthorized(
         code="unauthorized",
         message=message,
         headers={"WWW-Authenticate": "Bearer"},
+    )
+
+
+def forbidden(
+    message: str = "Authenticated but not permitted.",
+    details: dict[str, Any] | None = None,
+) -> ApiError:
+    return ApiError(
+        status.HTTP_403_FORBIDDEN,
+        code="forbidden",
+        message=message,
+        details=details,
+    )
+
+
+def not_found(
+    message: str = "Resource not found.", details: dict[str, Any] | None = None
+) -> ApiError:
+    return ApiError(
+        status.HTTP_404_NOT_FOUND,
+        code="not_found",
+        message=message,
+        details=details,
+    )
+
+
+def conflict(
+    message: str = "Conflict.", details: dict[str, Any] | None = None
+) -> ApiError:
+    return ApiError(
+        status.HTTP_409_CONFLICT,
+        code="conflict",
+        message=message,
+        details=details,
+    )
+
+
+def unprocessable_entity(
+    message: str = "Unprocessable entity.", details: dict[str, Any] | None = None
+) -> ApiError:
+    return ApiError(
+        status.HTTP_422_UNPROCESSABLE_ENTITY,
+        code="validation_error",
+        message=message,
+        details=details,
     )
 
 
