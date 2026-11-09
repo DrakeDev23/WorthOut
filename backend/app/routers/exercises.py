@@ -14,7 +14,7 @@ from app.services.exercises import get_exercise, list_exercises
 
 router = APIRouter(prefix="/api/v1/exercises", tags=["Exercises"])
 
-
+#hi
 @router.get(
     "",
     response_model=ExerciseListResponse,
