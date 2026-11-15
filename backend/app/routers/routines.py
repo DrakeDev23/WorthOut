@@ -24,7 +24,7 @@ from app.services.routines import (
 )
 
 router = APIRouter(prefix="/api/v1/routines", tags=["Routines"])
-
+#hi
 
 @router.get(
     "",
